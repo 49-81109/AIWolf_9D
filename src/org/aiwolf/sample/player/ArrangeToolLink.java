@@ -70,6 +70,7 @@ public class ArrangeToolLink {
 		roles = roles.substring(0, roles.length() - 1) + "];\n";
 		this.roles = roles;
 		this.input = makeInput();
+//		System.out.println(input);
 		executeTotalArrange();
 	}
 	
@@ -167,7 +168,10 @@ public class ArrangeToolLink {
 					}
 					seerCOstr = seerCOstr + ",";
 				}
-				seerCOstr = seerCOstr.substring(0, seerCOstr.length() - 1) + "}," + base.CODayMap.get(seer) + "];\n";
+				if(seerResult.size() > 0) {
+					seerCOstr = seerCOstr.substring(0, seerCOstr.length() - 1);
+				}
+				seerCOstr = seerCOstr + "}," + base.CODayMap.get(seer) + "];\n";
 			}
 			input = input + seerCOstr;
 		}

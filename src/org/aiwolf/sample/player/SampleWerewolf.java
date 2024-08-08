@@ -500,6 +500,20 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	@Override
 	void chooseFinalVoteCandidate() {
 		if (!isRevote) {
+			// 盤面整理ツールに連携
+			ArrangeToolLink arrange = getArrangeLink();
+			// 全視点での整理
+			String[][] every = getBoardArrange(arrange);
+			
+			// 妖狐確定死亡盤面では確白には投票をしない
+			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
+				List<Agent> candidates = aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
+				if (!candidates.isEmpty()) {
+					voteCandidate = randomSelect(candidates);
+					return;
+				}
+			}
+			
 			// 偽人狼（候補）も偽灰も見つからなかった場合，初回投票では投票リクエストに応じる
 			if ((fakeRole == Role.SEER && aliveFakeWolves.isEmpty()) && fakeWolfCandidates.isEmpty() && fakeGrayList.isEmpty()) {
 				List<Agent> candidates = voteRequestCounter.getRequestMap().values().stream()
@@ -539,15 +553,18 @@ public final class SampleWerewolf extends SampleBasePlayer {
 
 	@Override
 	public String talk() {
-		// 盤面整理ツールに連携
-		ArrangeToolLink arrange = getArrangeLink();
-		// 全視点での整理
-		String[][] every = getBoardArrange(arrange);
-		
-		// 妖狐確定死亡盤面で残り2縄以上ある場合は占い師を騙らない ?? seerCOlist
-		if(arrange.getTotalState(every).get("max-a-Rf") == 0 && arrange.getTotalState(every).get("count-expelled") > 1) {
-			fakeRole = Role.VILLAGER;
-			return super.talk();
+		// 妖狐確定死亡盤面で残り2縄以上ある場合は占い師を騙らない
+		int maxVic = 0;
+		for(List<Agent> li : victimAgents) {
+			if(li.size() > maxVic) {
+				maxVic = li.size();
+			}
+		}
+		if(executedFoxDay != -1 || maxVic > 1) {
+			if(currentGameInfo.getAliveAgentList().size() > 4) {
+				fakeRole = Role.VILLAGER;
+				return super.talk();
+			}
 		}
 		
 		if (fakeRole != Role.VILLAGER) {
@@ -570,8 +587,17 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				while (!myFakeJudgeQueue.isEmpty()) {
 					Judge judge = myFakeJudgeQueue.poll();
 					if (fakeRole == Role.SEER) {
-						judges.add(dayContent(me, judge.getDay(),
-								divinedContent(me, judge.getTarget(), judge.getResult())));
+						// 占い対象がすでに死亡している場合、黒結果を白結果に変更
+						if(currentGameInfo.getAliveAgentList().contains(judge.getTarget()) && judge.getResult() == Species.WEREWOLF) {
+							judges.add(dayContent(me, judge.getDay(),
+									divinedContent(me, judge.getTarget(), Species.HUMAN)));
+							myFakeJudgeMap.remove(judge.getTarget());
+							myFakeJudgeMap.put(judge.getTarget(), new Judge(judge.getDay(), judge.getAgent(), judge.getTarget(), Species.HUMAN));
+						}
+						else {
+							judges.add(dayContent(me, judge.getDay(),
+									divinedContent(me, judge.getTarget(), judge.getResult())));
+						}
 					} else if (fakeRole == Role.MEDIUM) {
 						judges.add(dayContent(me, judge.getDay(),
 								identContent(me, judge.getTarget(), judge.getResult())));
