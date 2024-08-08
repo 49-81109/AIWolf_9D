@@ -1,0 +1,12 @@
+0,status,1,VILLAGER,ALIVE,Sample9
+0,status,2,VILLAGER,ALIVE,Sample6
+0,status,3,WEREWOLF,ALIVE,Sample5
+0,status,4,SEER,ALIVE,Sample2
+0,status,5,VILLAGER,ALIVE,Sample1
+0,status,6,IMMORALIST,ALIVE,Sample3
+0,status,7,FOX,ALIVE,Sample4
+0,status,8,IMMORALIST,ALIVE,Sample7
+0,divine,4,7,HUMAN
+0,cursed,7,FOX
+0,suicide,6,IMMORALIST
+0,suicide,8,IMMORALIST
