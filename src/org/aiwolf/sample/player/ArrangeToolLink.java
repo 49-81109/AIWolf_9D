@@ -462,4 +462,10 @@ public class ArrangeToolLink {
 	int getDay() {
 		return day;
 	}
+	
+	/** dataが破綻しているかを返す */
+	boolean isBankruptcy(String[][] data) {
+		return output1.isBankruptcy(data);
+	}
+	
 }
