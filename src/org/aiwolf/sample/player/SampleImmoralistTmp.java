@@ -6,7 +6,11 @@
 package org.aiwolf.sample.player;
 
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.aiwolf.client.lib.Content;
@@ -31,11 +35,39 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	/** 妖狐リスト */
 	private List<Agent> foxes = new ArrayList<>();
 	
+	/** 騙る役職 */
+	private Role fakeRole;
+
+	/** カミングアウトする日 */
+	private int comingoutDay;
+
+	/** カミングアウト済みか */
+	private boolean isCameout;
+	
+	/** 偽判定リスト (潜伏時は占い対象だけ決めておく、COして結果公開するときに白か黒かを考える) */
+	private List<Agent> myFakeDivineTargetList = new ArrayList<>();
+
+	/** 未公表偽判定の待ち行列 */
+	private Deque<Agent> myFakeDivineTargetQueue = new LinkedList<>();
+	
+	/** 未公表偽判定の日にちの待ち行列 */
+	private Deque<Integer> myFakeDivinedDayQueue = new LinkedList<>();
+
+	/** 偽白のリスト */
+	private List<Agent> fakeWhiteList = new ArrayList<>();
+
+	/** 偽黒のリスト */
+	private List<Agent> fakeBlackList = new ArrayList<>();
+	
+	
 	/** 非背徳者の候補リスト(背徳者の可能性が非常に低いAgent, 妖狐は除く) */
 	private List<Agent> notImmoralistCandidates = new ArrayList<>();
 	
 	/** 非背徳者候補に投票をする確率 */
 	private static final int P_VoteNotRiCandidate = 77;
+	
+	/** 占い師を騙る確率 */
+	private static final int P_PretendSeer = 21;
 	
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
@@ -46,10 +78,55 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		myRole = Role.IMMORALIST;
 		SwfCandidates.clear();
 		List<Agent> allyList = new ArrayList<>(gameInfo.getRoleMap().keySet());
+		// 妖狐のリストを格納
 		foxes = allyList.stream().filter(a -> a != me).collect(Collectors.toList());
 		for(Agent a : foxes) {
 			System.out.println("[" + a.getAgentIdx() + "]" + a.getName() + " is the fox -> [" + me.getAgentIdx() + "]" + me.getName());
 		}
+		// 占い師を騙るかどうか
+		if(randP(P_PretendSeer)) {
+			fakeRole = Role.SEER;
+		}
+		else {
+			fakeRole = Role.VILLAGER;
+		}
+		// 1～3日目からランダムにカミングアウトする
+		comingoutDay = (int) (Math.random() * 3 + 1);
+		isCameout = false;
+		myFakeDivineTargetList.clear();
+		myFakeDivineTargetQueue.clear();
+		fakeWhiteList.clear();
+		fakeBlackList.clear();
+	}
+	
+	@Override
+	public void dayStart() {
+		super.dayStart();
+		if(day > 0) {
+			Agent divineTarget = chooseDivineTarget();
+			if (fakeRole != Role.VILLAGER) {
+				myFakeDivineTargetList.add(divineTarget);
+				myFakeDivineTargetQueue.offer(divineTarget);
+				myFakeDivinedDayQueue.offer(day);
+			}
+		}
+	}
+	
+	private Agent chooseDivineTarget() {
+		Agent target = null;
+		// 占い師騙りの場合
+		if (fakeRole == Role.SEER) {
+			// 占える対象を選択 (生存者+今日の犠牲者)
+			List<Agent> divinedCandidates = currentGameInfo.getAgentList().stream().filter(a -> aliveOthers.contains(a) || currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
+			List<Agent> candidates = divinedCandidates.stream()
+					.filter(a -> !myFakeDivineTargetList.contains(a) && comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
+			if (candidates.isEmpty()) {
+				target = randomSelect(divinedCandidates);
+			} else {
+				target = randomSelect(candidates);
+			}
+		}
+		return target;
 	}
 	
 	@Override
@@ -214,6 +291,49 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		return data;
 	}
 
+	@Override
+	public String talk() {
+		pretendSeerCO();
+		return super.talk();
+	}
+	
+	private void pretendSeerCO() {
+		if(fakeRole == Role.SEER) {
+			if (!isCameout) {
+				// 対抗カミングアウトがある場合，今日カミングアウトする
+				for (Agent a : aliveOthers) {
+					if (comingoutMap.get(a) == fakeRole) {
+						comingoutDay = day;
+					}
+				}
+				// カミングアウトするタイミングになったらカミングアウト
+				if (day >= comingoutDay) {
+					isCameout = true;
+					enqueueTalk(coContent(me, me, fakeRole));
+				}
+			}
+			// カミングアウトしたらこれまでの偽判定結果をすべて公開 (今のところ白結果しか出さない)
+			else {
+				List<Content> judges = new ArrayList<>();
+				while (!myFakeDivineTargetQueue.isEmpty()) {
+					Species divined = Species.HUMAN;
+					// 占い結果の生成
+					Judge judge = new Judge(myFakeDivinedDayQueue.poll(), me, myFakeDivineTargetQueue.poll(), divined);
+					judges.add(dayContent(me, judge.getDay(), divinedContent(me, judge.getTarget(), judge.getResult())));
+				}
+				if (judges.size() == 1) {
+					enqueueTalk(judges.get(0));
+					enqueueTalk(judges.get(0).getContentList().get(0));
+				} else if (judges.size() > 1) {
+					enqueueTalk(andContent(me, judges.toArray(new Content[0])));
+					for (Content c : judges) {
+						enqueueTalk(c.getContentList().get(0));
+					}
+				}
+			}
+		}
+	}
+	
 	@Override
 	public String whisper() {
 		throw new UnsupportedOperationException();
