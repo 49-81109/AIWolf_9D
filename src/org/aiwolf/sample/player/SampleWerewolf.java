@@ -76,7 +76,10 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	
 	/** 妖狐→背徳者候補リスト */
 	private Map<Agent, List<Agent>> immoralistCandidates = new HashMap<>();
-
+	
+	/** 人外行動候補リスト */
+	private List<Agent> SwfCandidates = new ArrayList<>();
+	
 	/** 人間リスト */
 	private List<Agent> humans = new ArrayList<>();
 
@@ -103,6 +106,12 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	
 	/** 妖狐確定死亡盤面において確定してない占い師(自視点は真確定)を襲撃する確率 [確定している場合は100%占い師を襲撃する] */
 	private static final int P_AttackSeer_FoxDead = 77;
+	
+	/** 妖狐確定死亡盤面以外において2日目に確定占い師を襲撃する確率 */
+	private static final int P_2dayAttackDisitionSeer_FoxPosAlive = 70;
+	
+	/** 占い師が2CO以上で、占い師が残り1人しか生存してない場合に残された占い師を襲撃する確率 */
+	private static final int P_AttackLeftSeer_FoxPosAlive = 49;
 
 	@Override
 	public void initialize(GameInfo gameInfo, GameSetting gameSetting) {
@@ -130,6 +139,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		werewolves = new ArrayList<>(gameInfo.getRoleMap().keySet());
 		foxCandidates.clear();
 		immoralistCandidates.clear();
+		SwfCandidates.clear();
 		humans = aliveOthers.stream().filter(a -> !werewolves.contains(a)).collect(Collectors.toList());
 		villagers.clear();
 		fakeWhiteList.clear();
@@ -300,7 +310,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 						.filter(a -> !myFakeJudgeMap.containsKey(a) && currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
 			}
 			if (candidates.isEmpty()) {
-				target = randomSelect(aliveOthers);
+				target = randomSelect(divinedCandidates);
 			} else {
 				target = randomSelect(candidates);
 			}
@@ -588,7 +598,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 					Judge judge = myFakeJudgeQueue.poll();
 					if (fakeRole == Role.SEER) {
 						// 占い対象がすでに死亡している場合、黒結果を白結果に変更
-						if(currentGameInfo.getAliveAgentList().contains(judge.getTarget()) && judge.getResult() == Species.WEREWOLF) {
+						if(!currentGameInfo.getAliveAgentList().contains(judge.getTarget()) && judge.getResult() == Species.WEREWOLF) {
 							judges.add(dayContent(me, judge.getDay(),
 									divinedContent(me, judge.getTarget(), Species.HUMAN)));
 							myFakeJudgeMap.remove(judge.getTarget());
@@ -627,106 +637,56 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		String[][] self = getSelfBoardArrange(arrange, false);
 		// 自身が主張する村人陣営役職視点での整理
 		String[][] pretend = getCOBoardArrange(arrange, me, false);
+		// 人外候補リストの更新
+		SwfCandidates = addNonVillagerSideCandidates(arrange, every, SwfCandidates);
 		
-		// 妖狐確定死亡時
+		// 1.妖狐確定死亡時
 		if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
-			// 自分が占い師COしていた場合、自分と真占い師以外は確白なので確白から襲撃
-			if(comingoutMap.get(me) == Role.SEER) {
-				attackVoteCandidate = randomSelect(villagers.stream().filter(a -> comingoutMap.get(a) != Role.SEER).collect(Collectors.toList()));
-				return;
-			}
-			// 占い師COしてない場合  
-			else {
-				// 1.全視点で真占い師が確定していてその占い師が生存している場合→その占い師を襲撃
-				if(arrange.agentDisition(every, Role.SEER).size() > 0) {
-					if(toAliveList(arrange.agentDisition(every, Role.SEER)).size() > 0) {
-						attackVoteCandidate = randomSelect(toAliveList(arrange.agentDisition(every, Role.SEER)));
-						return;
-					}
-				}
-				// 2.全視点で占い師候補が死亡している場合→確白を優先して襲撃
-				if(toAliveList(arrange.agentCandidate(every, Role.SEER)).size() == 0) {
-					if(toAliveList(arrange.getDisitionNRwList(every)).size() > 0) {
-						attackVoteCandidate = randomSelect(toAliveList(arrange.getDisitionNRwList(every)));
-						return;
-					}
-					else {
-						attackVoteCandidate = randomSelect(aliveOthers);
-						return;
-					}
-				}
-				// 3-4.全視点では真占い師が確定してなくて占い師COがある場合
-				if(isCo(Role.SEER)) {
-					// 生存している占い師COリスト(最大1人のはず)
-					List<Agent> seerCO = aliveOthers.stream().filter(a -> comingoutMap.get(a) == Role.SEER).collect(Collectors.toList());
-					if(seerCO.size() > 0) {
-						List<Agent> candidates = aliveOthers;
-						boolean isMeDisitionWolf = false;
-						for(Agent seer : seerCO) {
-							// 占い師視点でのdata
-							String[][] seerPosi = getCOBoardArrange(arrange, seer, false);
-							if(arrange.getDisitionRwList(seerPosi).size() > 0) {
-								// 占い師CO者は真のはずなので人狼確定位置があるなら自分になるはずだが一応条件に入れる
-								if(arrange.getDisitionRwList(seerPosi).get(0) == me) {
-									candidates = candidates.stream().filter(a -> a != seer).collect(Collectors.toList());
-									isMeDisitionWolf = true;
-								}
-							}
-						}
-						// 3.その占い師視点で「自分の人狼」が確定している場合→占い師以外を襲撃(確白を優先して襲撃)
-						if(isMeDisitionWolf) {
-							List<Agent> disitionWhite = candidates.stream().filter(a -> arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
-							// 確白がいる場合確白から襲撃
-							if(disitionWhite.size() > 0) {
-								attackVoteCandidate = randomSelect(disitionWhite);
-								return;
-							}
-							else {
-								attackVoteCandidate = randomSelect(candidates);
-								return;
-							}
-						}
-						// 4.そうでない場合→確率P_AttackSeer_FoxDeadで占い師を襲撃し、それ以外の場合は確白を優先して襲撃
-						else {
-							if(randP(P_AttackSeer_FoxDead)) {
-								attackVoteCandidate = randomSelect(seerCO);
-								return;
-							}
-							else {
-								candidates = candidates.stream().filter(a -> comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
-								List<Agent> disitionWhite = candidates.stream().filter(a -> arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
-								// 確白がいる場合確白から襲撃
-								if(disitionWhite.size() > 0) {
-									attackVoteCandidate = randomSelect(disitionWhite);
-									return;
-								}
-								else {
-									attackVoteCandidate = randomSelect(candidates);
-									return;
-								}
-							}
-						}
-					}
-				}
-				// 5.それ以外(占い師潜伏)→生存者からランダム
-				attackVoteCandidate = randomSelect(aliveOthers);
-				return;
-			}
+			chooseAttackFoxDisitionDead(arrange, every, self, pretend);
+			return;
 		}
-		
-		// 自分が占い師COしていた場合
-		if(comingoutMap.get(me) == Role.SEER) {
-			
+		// 2.夜時点で4人盤面のとき (飽和回避を最優先で行う→妖狐候補を襲撃)
+		else if(currentGameInfo.getAliveAgentList().size() == 4) {
+			chooseAttackToFox(arrange, every, self, pretend);
+			return;
 		}
+		// 3.夜時点で5人盤面で 自視点で占い師候補が全滅していて 全視点で自身の人狼が確定しているとき (このときも妖狐候補を襲撃)
+		else if(currentGameInfo.getAliveAgentList().size() == 5 && arrange.getDisitionRwList(every).contains(me) && toAliveList(arrange.agentCandidate(self, Role.SEER)).size() == 0) {
+			/** 自身の人狼が確定している場合、4人盤面になったら村人たちも妖狐ケアができないから人狼に票を入れる可能性が高い
+			 *  なので5人盤面にして村人に妖狐を吊る方向に動いてもらって、妖狐を吊って背徳者の道連れが起きることに懸ける
+			 *  そのため5人盤面を維持するために妖狐狙いの襲撃を行う (占い師候補が全滅しているので呪殺は起こらない)
+			 */
+			chooseAttackToFox(arrange, every, self, pretend);
+			return;
+		}
+		// 4.自分が占い師COしていた場合
+		else if(comingoutMap.get(me) == Role.SEER) {
+			chooseAttackPretendSeer(arrange, every, self, pretend);
+			return;
+		}
+		// 5.自分が潜伏している場合
 		else {
 			// 占い師COがある場合
 			if(isCo(Role.SEER)) {
-				
+				// 占い師が1確している場合 (または全視点で占い師は2CO以上だが1人を除いて全員破綻している場合も含む)
+				if(arrange.agentCandidate(every, Role.SEER).size() == 1) {
+					chooseAttackDisitionSeer(arrange, every, self, pretend);
+					return;
+				}
+				// 占い師が2CO以上の場合
+				else {
+					chooseAttackMore2CoSeer(arrange, every, self, pretend);
+					return;
+				}
+			}
+			// 占い師のCOがない場合
+			else {
+				chooseAttackGray(arrange, every, self, pretend);
 			}
 		}
 		
 		
-		
+		/*
 		// カミングアウトした村人陣営は襲撃先候補
 		List<Agent> candidates = villagers.stream().filter(a -> isCo(a)).collect(Collectors.toList());
 		for (Agent a : candidates) {
@@ -745,8 +705,293 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		} else if (!candidates.contains(declaredAttackVoteCandidate)) {
 			attackVoteCandidate = randomSelect(candidates);
 		}
+		//*/
 	}
 
+	/** 妖狐確定死亡盤面での襲撃先の決定関数 (襲撃関数優先度:1) */
+	private void chooseAttackFoxDisitionDead(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 自分が占い師COしていた場合、自分と真占い師以外は確白なので確白から襲撃
+		if(comingoutMap.get(me) == Role.SEER) {
+			attackVoteCandidate = randomSelect(villagers.stream().filter(a -> comingoutMap.get(a) != Role.SEER).collect(Collectors.toList()));
+			return;
+		}
+		// 占い師COしてない場合  
+		else {
+			// 1.全視点で真占い師が確定していてその占い師が生存している場合→その占い師を襲撃
+			if(arrange.agentDisition(every, Role.SEER).size() > 0) {
+				if(toAliveList(arrange.agentDisition(every, Role.SEER)).size() > 0) {
+					attackVoteCandidate = randomSelect(toAliveList(arrange.agentDisition(every, Role.SEER)));
+					return;
+				}
+			}
+			// 2.全視点で占い師候補が死亡している場合→確白を優先して襲撃
+			if(toAliveList(arrange.agentCandidate(every, Role.SEER)).size() == 0) {
+				if(toAliveList(arrange.getDisitionNRwList(every)).size() > 0) {
+					attackVoteCandidate = randomSelect(toAliveList(arrange.getDisitionNRwList(every)));
+					return;
+				}
+				else {
+					attackVoteCandidate = randomSelect(aliveOthers);
+					return;
+				}
+			}
+			// 3-4.全視点では真占い師が確定してなくて占い師COがある場合
+			if(isCo(Role.SEER)) {
+				// 生存している占い師COリスト(最大1人のはず)
+				List<Agent> seerCO = aliveOthers.stream().filter(a -> comingoutMap.get(a) == Role.SEER).collect(Collectors.toList());
+				if(seerCO.size() > 0) {
+					List<Agent> candidates = aliveOthers;
+					boolean isMeDisitionWolf = false;
+					for(Agent seer : seerCO) {
+						// 占い師視点でのdata
+						String[][] seerPosi = getCOBoardArrange(arrange, seer, false);
+						if(arrange.getDisitionRwList(seerPosi).size() > 0) {
+							// 占い師CO者は真のはずなので人狼確定位置があるなら自分になるはずだが一応条件に入れる
+							if(arrange.getDisitionRwList(seerPosi).get(0) == me) {
+								candidates = candidates.stream().filter(a -> a != seer).collect(Collectors.toList());
+								isMeDisitionWolf = true;
+							}
+						}
+					}
+					// 3.その占い師視点で「自分の人狼」が確定している場合→占い師以外を襲撃(確白を優先して襲撃)
+					if(isMeDisitionWolf) {
+						List<Agent> disitionWhite = candidates.stream().filter(a -> arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
+						// 確白がいる場合確白から襲撃
+						if(disitionWhite.size() > 0) {
+							attackVoteCandidate = randomSelect(disitionWhite);
+							return;
+						}
+						else {
+							attackVoteCandidate = randomSelect(candidates);
+							return;
+						}
+					}
+					// 4.そうでない場合→確率P_AttackSeer_FoxDeadで占い師を襲撃し、それ以外の場合は確白を優先して襲撃
+					else {
+						if(randP(P_AttackSeer_FoxDead)) {
+							attackVoteCandidate = randomSelect(seerCO);
+							return;
+						}
+						else {
+							candidates = candidates.stream().filter(a -> comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
+							List<Agent> disitionWhite = candidates.stream().filter(a -> arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
+							// 確白がいる場合確白から襲撃
+							if(disitionWhite.size() > 0) {
+								attackVoteCandidate = randomSelect(disitionWhite);
+								return;
+							}
+							else {
+								attackVoteCandidate = randomSelect(candidates);
+								return;
+							}
+						}
+					}
+				}
+			}
+			// 5.それ以外(占い師潜伏)→生存者からランダム
+			attackVoteCandidate = randomSelect(aliveOthers);
+			return;
+		}
+	}
+	
+	/** 妖狐狙いの襲撃先の決定関数 (襲撃関数優先度:2) */
+	private void chooseAttackToFox(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 妖狐候補が見つかっている場合、その候補を襲撃
+		if(foxCandidates.size() > 0) {
+			attackVoteCandidate = randomSelect(foxCandidates);
+			return;
+		}
+		// それ以外の場合、自視点での妖狐候補位置から襲撃
+		else {
+			attackVoteCandidate = randomSelect(arrange.agentCandidate(self, Role.FOX));
+			return;
+		}
+	}
+	
+	/** 占い師騙りの場合の襲撃先の決定関数 (襲撃関数優先度:3) */
+	private void chooseAttackPretendSeer(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 破綻していた場合
+		if(arrange.isBankruptcy(pretend)) {
+			// 全視点での確白が半数以上いる場合、確白から
+			if(arrange.getDisitionNRwList(every).size() * 2 >= currentGameInfo.getAliveAgentList().size()) {
+				attackVoteCandidate = randomSelect(arrange.getDisitionNRwList(every));
+				return;
+			}
+			// 確白が半数未満の場合
+			else {
+				// 占い師が真確定していたら占い師を襲撃
+				if(arrange.agentDisition(every, Role.SEER).size() == 1) {
+					attackVoteCandidate = arrange.agentDisition(every, Role.SEER).get(0);
+				}
+				// それ以外ランダム
+				attackVoteCandidate = randomSelect(aliveOthers);
+				return;
+			}
+		}
+		// そうでない場合
+		else {
+			// 自分の黒先は襲撃候補から外す
+			List<Agent> candidates = aliveOthers.stream().filter(a -> !arrange.getDisitionRwList(pretend).contains(a)).collect(Collectors.toList());
+			// 占い師騙り視点で確白が半数以上いる場合、確白から襲撃
+			if(arrange.getDisitionNRwList(pretend).size() * 2 >= currentGameInfo.getAliveAgentList().size()) {
+				candidates = candidates.stream().filter(a -> arrange.getDisitionNRwList(pretend).contains(a)).collect(Collectors.toList());
+				attackVoteCandidate = randomSelect(candidates);
+				return;
+			}
+			// 妖狐候補は外す
+			candidates = candidates.stream().filter(a -> !foxCandidates.contains(a)).collect(Collectors.toList());
+			// 自視点の生存確定妖狐陣営リスト
+			List<Agent> disiSfList = toAliveList(arrange.getDisitionSwfList(self).stream().filter(a -> a != me).collect(Collectors.toList()));
+			// 5人で生存確定妖狐陣営のプレイヤーが2人以上いる場合, できるだけ妖狐候補じゃないほうを襲撃
+			if(aliveOthers.size() < 5 && disiSfList.size() > 1) {
+				if(candidates.stream().filter(a -> disiSfList.contains(a)).collect(Collectors.toList()).size() > 0) {
+					attackVoteCandidate = randomSelect(candidates.stream().filter(a -> disiSfList.contains(a)).collect(Collectors.toList()));
+					return;
+				}
+			}
+			// 妖狐候補が見つかっている場合、その妖狐基軸での背徳者候補から襲撃
+			if(foxCandidates.size() > 0) {
+				// 妖狐候補リストからランダムに1人取り出しているが、基本妖狐候補リストには1人しか入らないはず
+				Agent foxCandidate = randomSelect(foxCandidates);
+				List<Agent> RiCandidateList = immoralistCandidates.get(foxCandidate);
+				if(RiCandidateList.size() > 0) {
+					attackVoteCandidate = randomSelect(RiCandidateList);
+					return;
+				}
+			}
+			// それ以外なら占い師COしていないプレイヤーから襲撃
+			attackVoteCandidate = randomSelect(candidates.stream().filter(a -> getCoRole(a) != Role.SEER).collect(Collectors.toList()));
+			return;
+		}
+	}
+	
+	/** 占い師1確盤面での襲撃先の決定関数 (襲撃関数優先度:4) */
+	private void chooseAttackDisitionSeer(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 1確占い師が生存している場合, 確率P_2dayAttackDisitionSeer_FoxPosAliveで2日目は占い師を襲撃(3日目以降は確実に占い師を襲撃)
+		if(currentGameInfo.getAliveAgentList().contains(arrange.agentCandidate(every, Role.SEER).get(0))) {
+			if(randP(P_2dayAttackDisitionSeer_FoxPosAlive) || currentGameInfo.getAliveAgentList().size() < 7) {
+				attackVoteCandidate = arrange.agentCandidate(every, Role.SEER).get(0);
+				return;
+			}
+		}
+		// 1確占い師が死亡している場合、または確率P_2dayAttackDisitionSeer_FoxPosAlive以外ではグレー襲撃
+		else {
+			chooseAttackGray(arrange, every, self, pretend);
+			return;
+		}
+	}
+	
+	/** グレー位置の襲撃先の決定関数 */
+	private void chooseAttackGray(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 自身の人外が確定している場合
+		if(arrange.getDisitionSwfList(every).contains(me)) {
+			// 全視点での確白が半数以上いる場合、確白から
+			if(arrange.getDisitionNRwList(every).size() * 2 >= currentGameInfo.getAliveAgentList().size()) {
+				attackVoteCandidate = randomSelect(arrange.getDisitionNRwList(every));
+				return;
+			}
+			// 確白が半数未満の場合はランダム
+			else {
+				attackVoteCandidate = randomSelect(aliveOthers);
+				return;
+			}
+		}
+		// 自身の人外が確定してない場合
+		else {
+			// 村人視点での確白が半数以上いる場合
+			if(arrange.getDisitionNRwList(pretend).size() * 2 >= currentGameInfo.getAliveAgentList().size()) {
+				List<Agent> candidates = arrange.getDisitionNRwList(pretend);
+				// 妖狐候補が見つかっている場合、その妖狐基軸での確白背徳者候補から
+				if(foxCandidates.size() > 0) {
+					// 妖狐候補リストからランダムに1人取り出しているが、基本妖狐候補リストには1人しか入らないはず
+					Agent foxCandidate = randomSelect(foxCandidates);
+					List<Agent> RiCandidateList = immoralistCandidates.get(foxCandidate);
+					RiCandidateList = RiCandidateList.stream().filter(a -> candidates.contains(a)).collect(Collectors.toList());
+					if(RiCandidateList.size() > 0) {
+						attackVoteCandidate = randomSelect(RiCandidateList);
+						return;
+					}
+				}
+				// 妖狐候補が見つからなければ確白からランダム
+				else {
+					// 確白のうち人外行動をとったプレイヤーがいる場合、そこから襲撃
+					List<Agent> SfCandidate = toAliveList(candidates.stream().filter(a -> SwfCandidates.contains(a)).collect(Collectors.toList()));
+					if(SfCandidate.size() > 0) {
+						attackVoteCandidate = randomSelect(SfCandidate);
+						return;
+					}
+					attackVoteCandidate = randomSelect(candidates);
+					return;
+				}
+			}
+			// 確白が半数未満の場合
+			else {
+				// 妖狐候補が見つかっている場合、その妖狐基軸での背徳者候補から襲撃
+				if(foxCandidates.size() > 0) {
+					// 妖狐候補リストからランダムに1人取り出しているが、基本妖狐候補リストには1人しか入らないはず
+					Agent foxCandidate = randomSelect(foxCandidates);
+					List<Agent> RiCandidateList = immoralistCandidates.get(foxCandidate);
+					if(RiCandidateList.size() > 0) {
+						attackVoteCandidate = randomSelect(RiCandidateList);
+						return;
+					}
+				}
+				// 妖狐候補が見つからなければランダム
+				else {
+					// 人外行動をとったプレイヤーがいる場合、そこから襲撃
+					List<Agent> SfCandidate = toAliveList(SwfCandidates);
+					if(SfCandidate.size() > 0) {
+						attackVoteCandidate = randomSelect(SfCandidate);
+						// 特に騙り視点でそのプレイヤーが確白だったらそこを優先
+						SfCandidate = SfCandidate.stream().filter(a -> arrange.getDisitionNRwList(pretend).contains(a)).collect(Collectors.toList());
+						if(SfCandidate.size() > 0) {
+							attackVoteCandidate = randomSelect(SfCandidate);
+						}
+						return;
+					}
+					attackVoteCandidate = randomSelect(aliveOthers);
+					return;
+				}
+			}
+		}
+	}
+	
+	/** 自分が潜伏で占い師が2CO以上のときの襲撃先の決定関数 (襲撃関数優先度:5) */
+	private void chooseAttackMore2CoSeer(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
+		// 1.占い師COしているプレイヤーが2人以上生存時 (破綻除く)
+		if(toAliveList(arrange.agentCandidate(every, Role.SEER)).size() > 1) {
+			// 自視点で真の可能性のある占い師から襲撃
+			List<Agent> possibleSeer = aliveOthers.stream().filter(a -> getCoRole(a) == Role.SEER && arrange.agentCandidate(self, Role.SEER).contains(a)).collect(Collectors.toList());
+			if(possibleSeer.size() > 0) {
+				attackVoteCandidate = randomSelect(possibleSeer);
+				return;
+			}
+			// 自視点で真の可能性のある占い師がいない場合、偽占い師からランダムに襲撃
+			else {
+				attackVoteCandidate = randomSelect(arrange.agentCandidate(every, Role.SEER));
+				return;
+			}
+		}
+		// 2.占い師COしているプレイヤーが1人のみ生存時 (破綻除く)
+		else if(toAliveList(arrange.agentCandidate(every, Role.SEER)).size() == 1) {
+			// 確率P_AttackLeftSeer_FoxPosAliveで残された占い師を襲撃
+			if(randP(P_AttackLeftSeer_FoxPosAlive)) {
+				attackVoteCandidate = randomSelect(arrange.agentCandidate(every, Role.SEER));
+				return;
+			}
+			// それ以外はグレー襲撃
+			else {
+				chooseAttackGray(arrange, every, self, pretend);
+				return;
+			}
+		}
+		// 3.占い師CO全滅時
+		else {
+			chooseAttackGray(arrange, every, self, pretend);
+			return;
+		}
+	}
+	
 	@Override
 	public Agent attack() {
 		chooseAttackVoteCandidate();
