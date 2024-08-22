@@ -67,7 +67,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	private static final int P_VoteNotRiCandidate = 77;
 	
 	/** 占い師を騙る確率 */
-	private static final int P_PretendSeer = 21;
+	private static final int P_PretendSeer = 49;
 	
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
@@ -95,6 +95,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		isCameout = false;
 		myFakeDivineTargetList.clear();
 		myFakeDivineTargetQueue.clear();
+		myFakeDivinedDayQueue.clear();
 		fakeWhiteList.clear();
 		fakeBlackList.clear();
 	}
@@ -146,7 +147,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		}
 
 		// 村人目線での人狼候補決定アルゴリズム
-		for (Judge divination : divinationList) {
+		for (Judge divination : getDivinationList()) {
 			// まず占い結果から人狼候補を見つける
 			Agent he = divination.getAgent();
 			Species result = divination.getResult();
@@ -202,6 +203,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	@Override
 	void chooseFinalVoteCandidate() {
 		if (!isRevote) {
+			
 			// 盤面整理ツールに連携
 			ArrangeToolLink arrange = getArrangeLink();
 			// 全視点での整理
@@ -212,6 +214,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 //			String[][] pretend = getCOBoardArrange(arrange, me, false);
 			// 人外候補リストの更新
 			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
+			
 			
 			// 人狼候補が見つけられなかった場合，初回投票では投票リクエストに応じる
 			if (wolfCandidates.isEmpty()) {
@@ -297,6 +300,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		return super.talk();
 	}
 	
+	/** 占い師騙り */
 	private void pretendSeerCO() {
 		if(fakeRole == Role.SEER) {
 			if (!isCameout) {

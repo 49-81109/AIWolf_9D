@@ -1,4 +1,7 @@
 role=[villager:3,seer:1,werewolf:1,foxspirit:1,immoralist:2];
-player=[[1]Sample1:1,[2]Sample4:2,[3]Sample9:3,[4]Sample2:4,[5]Sample5:5,[6]Sample6:6,[7]Sample7:7,[8]Sample3:8];
-victim=[{7},{},{}];
-expelled=[1,4,8];
+player=[[1]Sample6:1,[2]Sample3:2,[3]Sample2:3,[4]Sample1:4,[5]Sample7:5,[6]Sample4:6,[7]Sample5:7,[8]Sample9:8];
+victim=[{2},{},{}];
+expelled=[5,3,4];
+seerCO=[2,{4:false},1];
+seerCO=[3,{2:false,4:false},1];
+seerCO=[5,{2:false},1];

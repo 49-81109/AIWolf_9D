@@ -158,15 +158,19 @@ public class ArrangeToolLink {
 			if(base.comingoutMap.get(seer) == Role.SEER) {
 				seerCOstr = "seerCO=[" + seer.getAgentIdx() + ",{";
 				List<Judge> seerResult = getSeerResult(seer);
+				int divD = 1;
 				for(Judge j : seerResult) {
-					seerCOstr = seerCOstr + j.getTarget().getAgentIdx() + ":";
-					if(j.getResult() == Species.HUMAN) {
-						seerCOstr = seerCOstr + "false";
+					if(j.getDay() == divD) {
+						seerCOstr = seerCOstr + j.getTarget().getAgentIdx() + ":";
+						if(j.getResult() == Species.HUMAN) {
+							seerCOstr = seerCOstr + "false";
+						}
+						else {
+							seerCOstr = seerCOstr + "true";
+						}
+						seerCOstr = seerCOstr + ",";
+						divD++;
 					}
-					else {
-						seerCOstr = seerCOstr + "true";
-					}
-					seerCOstr = seerCOstr + ",";
 				}
 				if(seerResult.size() > 0) {
 					seerCOstr = seerCOstr.substring(0, seerCOstr.length() - 1);
@@ -180,7 +184,7 @@ public class ArrangeToolLink {
 	
 	private final List<Judge> getSeerResult(Agent seer) {
 		List<Judge> seerResult = new ArrayList<>();
-		for(Judge j : base.divinationList) {
+		for(Judge j : base.getDivinationList()) {
 			if(j.getAgent() == seer) {
 				seerResult.add(j);
 			}

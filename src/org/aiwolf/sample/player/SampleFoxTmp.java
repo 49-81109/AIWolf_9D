@@ -64,7 +64,7 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 		}
 		
 		// 村人目線での人狼候補決定アルゴリズム
-		for (Judge divination : divinationList) {
+		for (Judge divination : getDivinationList()) {
 			// まず占い結果から人狼候補を見つける
 			Agent he = divination.getAgent();
 			Species result = divination.getResult();

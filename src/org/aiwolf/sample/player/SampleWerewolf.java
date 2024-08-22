@@ -176,7 +176,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		whisperListHead = currentGameInfo.getWhisperList().size();
 
 		// 占い結果が嘘の場合，裏切り者候補
-		for (Judge j : divinationList) {
+		for (Judge j : getDivinationList()) {
 			Agent he = j.getAgent();
 			Agent target = j.getTarget();
 			Species result = j.getResult();
@@ -418,7 +418,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				}
 			}
 			// 自分の霊媒結果と矛盾する自称占い師を人狼か裏切り者と推測する
-			for (Judge divination : divinationList) {
+			for (Judge divination : getDivinationList()) {
 				Agent he = divination.getAgent();
 				Agent target = divination.getTarget();
 				Species result = divination.getResult();
@@ -438,7 +438,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		}
 
 		// 村人目線での人狼候補決定アルゴリズム
-		for (Judge divination : divinationList) {
+		for (Judge divination : getDivinationList()) {
 			// まず占い結果から人狼候補を見つける
 			Agent he = divination.getAgent();
 			Species result = divination.getResult();

@@ -41,10 +41,43 @@ public final class SampleVillager extends SampleBasePlayer {
 	void chooseVoteCandidate() {
 		wolfCandidates.clear();
 		
-		
+		if(isAllSeerTalkResult() && !(!isCo(Role.SEER) && currentGameInfo.getLastDeadAgentList().size() > 1)) {
+			// 盤面整理ツールに連携
+			ArrangeToolLink arrange = getArrangeLink();
+			// 全視点での整理
+			String[][] every = getBoardArrange(arrange);
+			// 自分が村人視点での整理
+			String[][] self = getSelfBoardArrange(arrange, false);
+			// 人外候補リストの更新
+			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
+			if(!arrange.isBankruptcy(self)) {
+				if(arrange.agentDisition(self, Role.VILLAGER).size() > 0) {
+					for(Agent villager : arrange.agentDisition(self, Role.VILLAGER)) {
+						if(villager != me) {
+							enqueueTalk(estimateContent(me, villager, Role.VILLAGER));
+						}
+					}
+				}
+				if(arrange.agentDisition(self, Role.SEER).size() > 0) {
+					for(Agent seer : arrange.agentDisition(self, Role.SEER)) {
+						enqueueTalk(estimateContent(me, seer, Role.SEER));
+					}
+				}
+				if(arrange.agentDisition(self, Role.WEREWOLF).size() > 0) {
+					for(Agent werewolf : arrange.agentDisition(self, Role.WEREWOLF)) {
+						enqueueTalk(estimateContent(me, werewolf, Role.WEREWOLF));
+					}
+				}
+				if(arrange.agentDisition(self, Role.FOX).size() > 0) {
+					for(Agent fox : arrange.agentDisition(self, Role.FOX)) {
+						enqueueTalk(estimateContent(me, fox, Role.FOX));
+					}
+				}
+			}
+		}
 		
 		// 村人目線での人狼候補決定アルゴリズム
-		for (Judge divination : divinationList) {
+		for (Judge divination : getDivinationList()) {
 			// まず占い結果から人狼候補を見つける
 			Agent he = divination.getAgent();
 			Species result = divination.getResult();
@@ -188,7 +221,7 @@ public final class SampleVillager extends SampleBasePlayer {
 					if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() < 3) {
 						voteCandidates = voteCandidates.stream().filter(a -> !arrange.agentCandidate(self, Role.SEER).contains(a)).collect(Collectors.toList());
 						// 占い師が2CO以下の場合、初日の黒先を投票候補から外す
-						for(Judge j : divinationList) {
+						for(Judge j : getDivinationList()) {
 							if(j.getResult() == Species.WEREWOLF) {
 								voteCandidates = voteCandidates.stream().filter(a -> a != j.getTarget()).collect(Collectors.toList());
 							}
