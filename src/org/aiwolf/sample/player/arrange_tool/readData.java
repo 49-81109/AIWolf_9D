@@ -28,6 +28,7 @@ final public class readData {
 		boolean err = isCorrect();
 		if(err) {
 			//System.exit(1);
+			System.out.println(data);
 		}
 		//table1.printStatus();
 	}

@@ -133,6 +133,9 @@ public class SampleBasePlayer implements Player {
 	/** カミングアウトした日にち */
 	Map<Agent, Integer> CODayMap = new HashMap<>();
 	
+	/** 占い結果を話したプレイヤーのリスト */
+	List<Agent> speakResultList = new ArrayList<>();
+	
 	/** GameInfo.talkList読み込みのヘッド */
 	int talkListHead;
 
@@ -221,6 +224,12 @@ public class SampleBasePlayer implements Player {
 		return comingoutMap.containsValue(role);
 	}
 
+	/** 生存している占い師CO者が全員占い結果を言ったかどうかを返す */
+	boolean isAllSeerTalkResult() {
+		List<Agent> aliveSeerCo = currentGameInfo.getAliveAgentList().stream().filter(a -> getCoRole(a) == Role.SEER).collect(Collectors.toList());
+		return aliveSeerCo.size() == speakResultList.size();
+	}
+	
 	/**
 	 * リストからランダムに選んで返す
 	 * 
@@ -261,6 +270,7 @@ public class SampleBasePlayer implements Player {
 		suicide.clear();
 		voteList.clear();
 		totalLink.clear();
+		speakResultList.clear();
 		executedFoxDay = -1;
 		roleCast = gameSetting.getRoleNumMap();
 		playerNum = gameSetting.getPlayerNum();
@@ -325,10 +335,19 @@ public class SampleBasePlayer implements Player {
 			}
 			return;
 		case DIVINED:
+			/*
 			divinationList.add(new Judge(day, content.getSubject(), content.getTarget(), content.getResult()));
+			System.out.println("seer " + day + "day : " + content.getSubject().getName() + " divined " + content.getTarget().getName());
+			if(!speakResultList.contains(content.getSubject())) {
+				speakResultList.add(content.getSubject());
+			}
+			//*/
 			return;
 		case IDENTIFIED:
 			identList.add(new Judge(day, content.getSubject(), content.getTarget(), content.getResult()));
+			if(!speakResultList.contains(content.getSubject())) {
+				speakResultList.add(content.getSubject());
+			}
 			return;
 		case OPERATOR:
 			parseOperator(content);
@@ -345,6 +364,13 @@ public class SampleBasePlayer implements Player {
 			parseSentence(content.getContentList().get(1));
 			break;
 		case DAY:
+//			System.out.println(content.getDay() + "day : cont [" + content.getContentList());
+			if(content.getContentList().get(0).getTopic() == Topic.DIVINED) {
+				divinationList.add(new Judge(content.getDay(), content.getContentList().get(0).getSubject(), content.getContentList().get(0).getTarget(), content.getContentList().get(0).getResult()));
+				if(!speakResultList.contains(content.getContentList().get(0).getSubject())) {
+					speakResultList.add(content.getContentList().get(0).getSubject());
+				}
+			}
 			parseSentence(content.getContentList().get(0));
 			break;
 		case AND:
@@ -376,6 +402,7 @@ public class SampleBasePlayer implements Player {
 		talkTurn = -1;
 		voteReasonMap.clear();
 		voteRequestCounter.clear();
+		speakResultList.clear();
 		// 前日に追放されたエージェントを登録
 		addExecutedAgent(currentGameInfo.getExecutedAgent());
 		
@@ -629,7 +656,7 @@ public class SampleBasePlayer implements Player {
 	// 盤面整理ツール実行
 	public void arrangeTool() {
 		ArrangeToolLink arrange = getArrangeLink();
-		arrange.printInput();
+//		arrange.printInput();
 		// 真視点でのデータ
 		String[][] data = getSelfBoardArrange(arrange, false);
 //		String[][] data = getSelfBoardArrange(arrange, true);
@@ -653,6 +680,13 @@ public class SampleBasePlayer implements Player {
 	public void resultSort() {
 		// 占い結果の整理
 		List<Judge> sortedDivineList = new ArrayList<>();
+		/*
+		System.out.println("----->>");
+		for(Judge j : divinationList) {
+			System.out.println("seer : " + j.getAgent().getName() + "→ " + j.getTarget().getName() + " : day " + j.getDay());
+		}
+		System.out.println("-----");
+		//*/
 		// 重複結果の削除
 		for(Judge j : divinationList) {
 			boolean isSame = false;
@@ -665,6 +699,10 @@ public class SampleBasePlayer implements Player {
 			if(!isSame) {
 				sortedDivineList.add(j);
 			}
+		}
+		
+		for(Judge j : sortedDivineList) {
+//			System.out.println("seer : " + j.getAgent().getName() + "→ " + j.getTarget().getName() + " : day " + j.getDay());
 		}
 		List<Judge> sortedDayDivineList = new ArrayList<>();
 		Map<Agent, Integer> seerResult = new HashMap<>();
@@ -696,17 +734,37 @@ public class SampleBasePlayer implements Player {
 		return seerResult;
 	}
 	
+	List<Judge> getDivinationList() {
+		List<Judge> seerResult = new ArrayList<>();
+		for(Judge j : divinationList) {
+			seerResult.add(j);
+		}
+		return seerResult;
+	}
+	
 	/** 盤面整理ツールと接続 */
 	public ArrangeToolLink getArrangeLink() {
 //		return new ArrangeToolLink(this);
-		//*
 		if(currentArrangeToolLink != null) {
 			return currentArrangeToolLink;
 		}
 		currentArrangeToolLink = new ArrangeToolLink(this);
+		//* 生存者のうち最小の番号のプレイヤーのみの盤面情報を表示(必ず1日1回のみ盤面が表示されるように)
+		boolean isSmallestAliveId = true;
+		for(int i = 1; i < me.getAgentIdx(); i++) {
+			if(isAlive(Agent.getAgent(i))) {
+				isSmallestAliveId = false;
+			}
+		}
+		if(isSmallestAliveId) {
+			currentArrangeToolLink.printInput();
+			String[][] every = getBoardArrange(currentArrangeToolLink);
+			System.out.println("Total");
+			currentArrangeToolLink.printroleCandidate(every);
+		}
+		//*/
 		totalLink.put(day, currentArrangeToolLink);
 		return currentArrangeToolLink;
-		//*/
 	}
 	
 	/** 村視点の整理実行 */
@@ -786,46 +844,63 @@ public class SampleBasePlayer implements Player {
 	}
 	
 	// 発話生成を簡略化するためのwrapper
+	
+	/** 発言の同意 */
 	static Content agreeContent(Agent subject, TalkType talkType, int talkDay, int talkID) {
 		return new Content(new AgreeContentBuilder(subject, talkType, talkDay, talkID));
 	}
 
+	/** 発言の非同意 */
 	static Content disagreeContent(Agent subject, TalkType talkType, int talkDay, int talkID) {
 		return new Content(new DisagreeContentBuilder(subject, talkType, talkDay, talkID));
 	}
 
+	/** 投票宣言 */
 	static Content voteContent(Agent subject, Agent target) {
 		return new Content(new VoteContentBuilder(subject, target));
 	}
 
+	/** 投票した報告 */
 	static Content votedContent(Agent subject, Agent target) {
 		return new Content(new VotedContentBuilder(subject, target));
 	}
 
+	/** 襲撃宣言(襲撃予告) */
 	static Content attackContent(Agent subject, Agent target) {
 		return new Content(new AttackContentBuilder(subject, target));
 	}
 
+	/** 襲撃した報告 */
 	static Content attackedContent(Agent subject, Agent target) {
 		return new Content(new AttackedContentBuilder(subject, target));
 	}
+	
+	/** 襲撃された報告 */
+	static Content attackedContent(Agent target) {
+		return new Content(new AttackedContentBuilder(target));
+	}
 
+	/** 護衛宣言(9Dでは狩人いないから多分使わん) */
 	static Content guardContent(Agent subject, Agent target) {
 		return new Content(new GuardCandidateContentBuilder(subject, target));
 	}
 
+	/** 護衛した報告(9Dでは狩人いないから多分使わん) */
 	static Content guardedContent(Agent subject, Agent target) {
 		return new Content(new GuardedAgentContentBuilder(subject, target));
 	}
 
+	/** 推定 ([Agent]の役職は[Role]だと思う) */
 	static Content estimateContent(Agent subject, Agent target, Role role) {
 		return new Content(new EstimateContentBuilder(subject, target, role));
 	}
 
+	/** CO */
 	static Content coContent(Agent subject, Agent target, Role role) {
 		return new Content(new ComingoutContentBuilder(subject, target, role));
 	}
 
+	/** 要求 ([Agent]に対して[content]をすることを要求) */
 	static Content requestContent(Agent subject, Agent target, Content content) {
 		return new Content(new RequestContentBuilder(subject, target, content));
 	}
@@ -834,14 +909,17 @@ public class SampleBasePlayer implements Player {
 		return new Content(new InquiryContentBuilder(subject, target, content));
 	}
 
+	/** 占い宣言(占い予告) */
 	static Content divinationContent(Agent subject, Agent target) {
 		return new Content(new DivinationContentBuilder(subject, target));
 	}
 
+	/** 占い結果報告 */
 	static Content divinedContent(Agent subject, Agent target, Species result) {
 		return new Content(new DivinedResultContentBuilder(subject, target, result));
 	}
 
+	/** 霊能結果報告(9Dでは霊能者いないから使わない) */
 	static Content identContent(Agent subject, Agent target, Species result) {
 		return new Content(new IdentContentBuilder(subject, target, result));
 	}
