@@ -34,6 +34,7 @@ import org.aiwolf.client.lib.EstimateContentBuilder;
 import org.aiwolf.client.lib.GuardCandidateContentBuilder;
 import org.aiwolf.client.lib.GuardedAgentContentBuilder;
 import org.aiwolf.client.lib.IdentContentBuilder;
+import org.aiwolf.client.lib.IfContentBuilder;
 import org.aiwolf.client.lib.InquiryContentBuilder;
 import org.aiwolf.client.lib.NotContentBuilder;
 import org.aiwolf.client.lib.OrContentBuilder;
@@ -150,6 +151,9 @@ public class SampleBasePlayer implements Player {
 	
 	/** 実際の投票先リスト */
 	List<Vote> voteList = new ArrayList<>();
+	
+	/** 発話リスト */
+	List<Content> talkedContent = new ArrayList<>();
 
 	/** 確率の最大値 */
 	static final int P_1 = 100;
@@ -361,6 +365,7 @@ public class SampleBasePlayer implements Player {
 	void parseOperator(Content content) {
 		switch (content.getOperator()) {
 		case BECAUSE:
+		case IF:
 			parseSentence(content.getContentList().get(1));
 			break;
 		case DAY:
@@ -403,6 +408,7 @@ public class SampleBasePlayer implements Player {
 		voteReasonMap.clear();
 		voteRequestCounter.clear();
 		speakResultList.clear();
+		talkedContent.clear();
 		// 前日に追放されたエージェントを登録
 		addExecutedAgent(currentGameInfo.getExecutedAgent());
 		
@@ -611,6 +617,19 @@ public class SampleBasePlayer implements Player {
 			talkQueue.offer(replaceSubject(content, me));
 		} else {
 			talkQueue.offer(content);
+		}
+	}
+	
+	void enqueue1Talk(Content content) {
+		boolean isAlreadyTalked = false;
+		for(Content c : talkedContent) {
+			if(content.equals(c)) {
+				isAlreadyTalked = true;
+			}
+		}
+		if(!isAlreadyTalked) {
+			talkedContent.add(content);
+			enqueueTalk(content);
 		}
 	}
 
@@ -946,6 +965,10 @@ public class SampleBasePlayer implements Player {
 
 	static Content becauseContent(Agent subject, Content reason, Content action) {
 		return new Content(new BecauseContentBuilder(subject, reason, action));
+	}
+	
+	static Content ifContent(Agent subject, Content reason, Content action) {
+		return new Content(new IfContentBuilder(subject, reason, action));
 	}
 
 }

@@ -116,6 +116,7 @@ public final class SampleSeer extends SampleBasePlayer {
 			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
 			
 			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
+				/*
 				System.out.println("Seer == [" + me.getAgentIdx() + "]" + me.getName() + "");
 				arrange.printroleCandidate(self);
 				/*
@@ -125,17 +126,17 @@ public final class SampleSeer extends SampleBasePlayer {
 			}
 			if(arrange.agentDisition(self, Role.VILLAGER).size() > 0) {
 				for(Agent villager : arrange.agentDisition(self, Role.VILLAGER)) {
-					enqueueTalk(estimateContent(me, villager, Role.VILLAGER));
+					enqueue1Talk(estimateContent(me, villager, Role.VILLAGER));
 				}
 			}
 			if(arrange.agentDisition(self, Role.WEREWOLF).size() > 0) {
 				for(Agent werewolf : arrange.agentDisition(self, Role.WEREWOLF)) {
-					enqueueTalk(estimateContent(me, werewolf, Role.WEREWOLF));
+					enqueue1Talk(estimateContent(me, werewolf, Role.WEREWOLF));
 				}
 			}
 			if(arrange.agentDisition(self, Role.FOX).size() > 0) {
 				for(Agent fox : arrange.agentDisition(self, Role.FOX)) {
-					enqueueTalk(estimateContent(me, fox, Role.FOX));
+					enqueue1Talk(estimateContent(me, fox, Role.FOX));
 				}
 			}
 			
@@ -143,7 +144,7 @@ public final class SampleSeer extends SampleBasePlayer {
 				for(Agent immoralist : arrange.agentDisition(self, Role.IMMORALIST)) {
 					
 					if(getCoRole(immoralist) == Role.SEER && whiteList.contains(immoralist)) {
-						enqueueTalk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), divinedContent(me, immoralist, Species.HUMAN)), estimateContent(me, immoralist, Role.IMMORALIST)));
+						enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), divinedContent(me, immoralist, Species.HUMAN)), estimateContent(me, immoralist, Role.IMMORALIST)));
 					}
 					if(getCoRole(immoralist) == Role.SEER && killedAgents.contains(immoralist)) {
 						int vicDay = 0;
@@ -153,7 +154,7 @@ public final class SampleSeer extends SampleBasePlayer {
 								break;
 							}
 						}
-						System.out.println(">>>> " + vicDay);
+//						System.out.println(">>>> " + vicDay);
 						Judge vicDivination = null;
 						for(Agent div : myDivinationMap.keySet()) {
 							if(myDivinationMap.get(div).getDay() == vicDay) {
@@ -161,14 +162,14 @@ public final class SampleSeer extends SampleBasePlayer {
 							}
 						}
 						if(vicDivination != null) {
-							System.out.println(">>> " + vicDivination.getTarget());
+//							System.out.println(">>> " + vicDivination.getTarget());
 							if(vicDivination.getTarget() != immoralist) {
 								Content notfox = andContent(me, dayContent(me, vicDay, attackedContent(immoralist)), notContent(me, dayContent(me, vicDay, divinationContent(me, immoralist))));
-								enqueueTalk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), notfox), estimateContent(me, immoralist, Role.IMMORALIST)));
+								enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), notfox), estimateContent(me, immoralist, Role.IMMORALIST)));
 							}
 						}
 					}
-					enqueueTalk(estimateContent(me, immoralist, Role.IMMORALIST));
+					enqueue1Talk(estimateContent(me, immoralist, Role.IMMORALIST));
 				}
 			}
 			
