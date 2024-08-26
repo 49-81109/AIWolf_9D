@@ -321,6 +321,15 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				List<Content> judges = new ArrayList<>();
 				while (!myFakeDivineTargetQueue.isEmpty()) {
 					Species divined = Species.HUMAN;
+					// 4人盤面ですべて白結果を出すと妖狐が人狼位置になってしまう場合には黒を出す
+					if(currentGameInfo.getAliveAgentList().size() == 4) {
+						List<Agent> wolfCandidate = aliveOthers.stream().filter(a -> !myFakeDivineTargetList.contains(a)).collect(Collectors.toList());
+						if(wolfCandidate.size() == 1) {
+							if(foxes.contains(wolfCandidate.get(0))) {
+								divined = Species.WEREWOLF;
+							}
+						}
+					}
 					// 占い結果の生成
 					Judge judge = new Judge(myFakeDivinedDayQueue.poll(), me, myFakeDivineTargetQueue.poll(), divined);
 					judges.add(dayContent(me, judge.getDay(), divinedContent(me, judge.getTarget(), judge.getResult())));
