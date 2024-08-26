@@ -103,83 +103,65 @@ public final class SampleSeer extends SampleBasePlayer {
 	@Override
 	void chooseVoteCandidate() {
 		Content iAm = isCameout ? coContent(me, me, Role.SEER) : coContent(me, me, Role.VILLAGER);
+		voteCandidateWithArrangeTool();
 		
-		//*
-		if(isAllSeerTalkResult() && !(!isCo(me) && currentGameInfo.getLastDeadAgentList().size() > 1)) {
-			// 盤面整理ツールに連携
-			ArrangeToolLink arrange = getArrangeLink();
-			// 全視点での整理
-			String[][] every = getBoardArrange(arrange);
-			// 自分が占い師視点での整理
-			String[][] self = getSelfBoardArrange(arrange, false);
-			// 人外候補リストの更新
-			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
-			
-			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
-				/*
-				System.out.println("Seer == [" + me.getAgentIdx() + "]" + me.getName() + "");
-				arrange.printroleCandidate(self);
-				/*
-				System.out.println("Total");
-				arrange.printroleCandidate(every);
-				//*/
-			}
-			if(arrange.agentDisition(self, Role.VILLAGER).size() > 0) {
-				for(Agent villager : arrange.agentDisition(self, Role.VILLAGER)) {
-					enqueue1Talk(estimateContent(me, villager, Role.VILLAGER));
-				}
-			}
-			if(arrange.agentDisition(self, Role.WEREWOLF).size() > 0) {
-				for(Agent werewolf : arrange.agentDisition(self, Role.WEREWOLF)) {
-					enqueue1Talk(estimateContent(me, werewolf, Role.WEREWOLF));
-				}
-			}
-			if(arrange.agentDisition(self, Role.FOX).size() > 0) {
-				for(Agent fox : arrange.agentDisition(self, Role.FOX)) {
-					enqueue1Talk(estimateContent(me, fox, Role.FOX));
-				}
-			}
-			
-			if(arrange.agentDisition(self, Role.IMMORALIST).size() > 0) {
-				for(Agent immoralist : arrange.agentDisition(self, Role.IMMORALIST)) {
-					
-					if(getCoRole(immoralist) == Role.SEER && whiteList.contains(immoralist)) {
-						enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), divinedContent(me, immoralist, Species.HUMAN)), estimateContent(me, immoralist, Role.IMMORALIST)));
-					}
-					if(getCoRole(immoralist) == Role.SEER && killedAgents.contains(immoralist)) {
-						int vicDay = 0;
-						for(int i = 0; i < victimAgents.size(); i++) {
-							if(victimAgents.get(i).contains(immoralist)) {
-								vicDay = i + 1;
-								break;
+
+
+		// 偽占い師は人狼か妖狐か背徳者
+		for (Agent he : aliveOthers) {
+			if (comingoutMap.get(he) == Role.SEER) {
+				wolfCandidates.add(he);
+				// CO後なら推定理由をつける
+				if (isCameout) {
+					Content heIs = coContent(he, he, Role.SEER);
+					Content reason = andContent(me, iAm, heIs);
+					// 生存白先の対抗占いは背徳者確定
+					if(whiteList.contains(he)) {
+						reason = andContent(me, iAm, heIs, divinedContent(me, he, Species.HUMAN));
+						estimateReasonMap.put(new Estimate(me, he, reason, Role.IMMORALIST));
+						enqueue1Talk(becauseContent(me, reason, declaredContent(me, he, Role.IMMORALIST)));
+						List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a)).collect(Collectors.toList());
+						if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
+							List<Content> notVote = new ArrayList<>();
+							List<Content> foxCand = new ArrayList<>();
+							for(Agent c : foxCandidates) {
+								notVote.add(notContent(me, votedContent(he, c)));
+								foxCand.add(estimateContent(me, c, Role.FOX));
 							}
-						}
-//						System.out.println(">>>> " + vicDay);
-						Judge vicDivination = null;
-						for(Agent div : myDivinationMap.keySet()) {
-							if(myDivinationMap.get(div).getDay() == vicDay) {
-								vicDivination = myDivinationMap.get(div);
-							}
-						}
-						if(vicDivination != null) {
-//							System.out.println(">>> " + vicDivination.getTarget());
-							if(vicDivination.getTarget() != immoralist) {
-								Content notfox = andContent(me, dayContent(me, vicDay, attackedContent(immoralist)), notContent(me, dayContent(me, vicDay, divinationContent(me, immoralist))));
-								enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), notfox), estimateContent(me, immoralist, Role.IMMORALIST)));
-							}
+							Content notVoteReason = andContent(me, declaredContent(me, he, Role.IMMORALIST), andContent(me, notVote));
+							enqueue1Talk(becauseContent(me, notVoteReason, orContent(me, foxCand)));
 						}
 					}
-					enqueue1Talk(estimateContent(me, immoralist, Role.IMMORALIST));
+					else if(blackList.size() > 0) {
+						// 対抗占い以外で人狼が見つかっている場合、対抗占いは妖狐か背徳者
+						if(blackList.get(0) != he) {
+							reason = andContent(me, iAm, heIs, divinedContent(me, blackList.get(0), Species.WEREWOLF));
+							estimateReasonMap.put(new Estimate(me, he, reason, Role.FOX, Role.IMMORALIST));
+							enqueue1Talk(becauseContent(me, reason, andContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
+							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a)).collect(Collectors.toList());
+							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
+								List<Content> notVote = new ArrayList<>();
+								List<Content> foxCand = new ArrayList<>();
+								for(Agent c : foxCandidates) {
+									notVote.add(notContent(me, votedContent(he, c)));
+									foxCand.add(estimateContent(me, c, Role.FOX));
+								}
+								Content notVoteReason = andContent(me, notVote);
+								enqueue1Talk(ifContent(me, estimateContent(me, he, Role.IMMORALIST), becauseContent(me, notVoteReason, orContent(me, foxCand))));
+							}
+						}
+						else {
+							estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF));
+						}
+					}
+					else {
+						estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));		
+					}
+
 				}
 			}
-			
 		}
-		
-		
-		
-		
-		//*/
-		
+
 		// 生存人狼がいれば当然投票
 		aliveWolves = blackList.stream().filter(a -> isAlive(a)).collect(Collectors.toList());
 		// 既定の投票先が生存人狼でない場合投票先を変える
@@ -198,21 +180,8 @@ public final class SampleSeer extends SampleBasePlayer {
 
 		// これ以降は生存人狼がいない場合
 		wolfCandidates.clear();
-
-		// 偽占い師は人狼か裏切り者
-		for (Agent he : aliveOthers) {
-			if (comingoutMap.get(he) == Role.SEER) {
-				wolfCandidates.add(he);
-				// CO後なら推定理由をつける
-				if (isCameout) {
-					Content heIs = coContent(he, he, Role.SEER);
-					Content reason = andContent(me, iAm, heIs);
-					estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));
-				}
-			}
-		}
-
-		// 自分の判定と矛盾する偽霊媒師は人狼か裏切り者
+		
+		// 自分の判定と矛盾する偽霊媒師は人狼か裏切り者 ←使わない
 		for (Judge ident : identList) {
 			Agent he = ident.getAgent();
 			Agent target = ident.getTarget();
@@ -314,6 +283,73 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 	}
 
+	void voteCandidateWithArrangeTool() {
+		if(isAllSeerTalkResult() && !(!isCo(me) && currentGameInfo.getLastDeadAgentList().size() > 1)) {
+			// 盤面整理ツールに連携
+			ArrangeToolLink arrange = getArrangeLink();
+			// 全視点での整理
+			String[][] every = getBoardArrange(arrange);
+			// 自分が占い師視点での整理
+			String[][] self = getSelfBoardArrange(arrange, false);
+			// 人外候補リストの更新
+			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
+			
+			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
+
+			}
+			// 確定事項
+			if(arrange.agentDisition(self, Role.VILLAGER).size() > 0) {
+				for(Agent villager : arrange.agentDisition(self, Role.VILLAGER)) {
+					enqueue1Talk(declaredContent(me, villager, Role.VILLAGER));
+				}
+			}
+			if(arrange.agentDisition(self, Role.WEREWOLF).size() > 0) {
+				for(Agent werewolf : arrange.agentDisition(self, Role.WEREWOLF)) {
+					enqueue1Talk(declaredContent(me, werewolf, Role.WEREWOLF));
+				}
+			}
+			if(arrange.agentDisition(self, Role.FOX).size() > 0) {
+				for(Agent fox : arrange.agentDisition(self, Role.FOX)) {
+					enqueue1Talk(declaredContent(me, fox, Role.FOX));
+				}
+			}
+			
+			if(arrange.agentDisition(self, Role.IMMORALIST).size() > 0) {
+				for(Agent immoralist : arrange.agentDisition(self, Role.IMMORALIST)) {
+					// 白先が対抗の場合の理由つけ
+					if(getCoRole(immoralist) == Role.SEER && whiteList.contains(immoralist)) {
+						enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), divinedContent(me, immoralist, Species.HUMAN)), declaredContent(me, immoralist, Role.IMMORALIST)));
+					}
+					// 対抗が犠牲になったときその日に対抗を占ってない場合の理由つけ
+					if(getCoRole(immoralist) == Role.SEER && killedAgents.contains(immoralist)) {
+						int vicDay = 0;
+						for(int i = 0; i < victimAgents.size(); i++) {
+							if(victimAgents.get(i).contains(immoralist)) {
+								vicDay = i + 1;
+								break;
+							}
+						}
+//						System.out.println(">>>> " + vicDay);
+						Judge vicDivination = null;
+						for(Agent div : myDivinationMap.keySet()) {
+							if(myDivinationMap.get(div).getDay() == vicDay) {
+								vicDivination = myDivinationMap.get(div);
+							}
+						}
+						if(vicDivination != null) {
+//							System.out.println(">>> " + vicDivination.getTarget());
+							if(vicDivination.getTarget() != immoralist) {
+								Content notfox = andContent(me, dayContent(me, vicDay, attackedContent(immoralist)), notContent(me, dayContent(me, vicDay, divinationContent(me, immoralist))));
+								enqueue1Talk(becauseContent(me, andContent(me, coContent(immoralist, immoralist, Role.SEER), notfox), declaredContent(me, immoralist, Role.IMMORALIST)));
+							}
+						}
+					}
+					enqueue1Talk(declaredContent(me, immoralist, Role.IMMORALIST));
+				}
+			}	
+		}
+	}
+	
 	@Override
 	void chooseFinalVoteCandidate() {
 		if (!isRevote) {

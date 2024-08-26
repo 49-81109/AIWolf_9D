@@ -54,23 +54,23 @@ public final class SampleVillager extends SampleBasePlayer {
 				if(arrange.agentDisition(self, Role.VILLAGER).size() > 0) {
 					for(Agent villager : arrange.agentDisition(self, Role.VILLAGER)) {
 						if(villager != me) {
-							enqueue1Talk(estimateContent(me, villager, Role.VILLAGER));
+							enqueue1Talk(declaredContent(me, villager, Role.VILLAGER));
 						}
 					}
 				}
 				if(arrange.agentDisition(self, Role.SEER).size() > 0) {
 					for(Agent seer : arrange.agentDisition(self, Role.SEER)) {
-						enqueue1Talk(estimateContent(me, seer, Role.SEER));
+						enqueue1Talk(declaredContent(me, seer, Role.SEER));
 					}
 				}
 				if(arrange.agentDisition(self, Role.WEREWOLF).size() > 0) {
 					for(Agent werewolf : arrange.agentDisition(self, Role.WEREWOLF)) {
-						enqueue1Talk(estimateContent(me, werewolf, Role.WEREWOLF));
+						enqueue1Talk(declaredContent(me, werewolf, Role.WEREWOLF));
 					}
 				}
 				if(arrange.agentDisition(self, Role.FOX).size() > 0) {
 					for(Agent fox : arrange.agentDisition(self, Role.FOX)) {
-						enqueue1Talk(estimateContent(me, fox, Role.FOX));
+						enqueue1Talk(declaredContent(me, fox, Role.FOX));
 					}
 				}
 			}

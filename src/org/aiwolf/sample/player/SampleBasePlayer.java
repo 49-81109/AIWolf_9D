@@ -27,6 +27,7 @@ import org.aiwolf.client.lib.BecauseContentBuilder;
 import org.aiwolf.client.lib.ComingoutContentBuilder;
 import org.aiwolf.client.lib.Content;
 import org.aiwolf.client.lib.DayContentBuilder;
+import org.aiwolf.client.lib.DeclaredContentBuilder;
 import org.aiwolf.client.lib.DisagreeContentBuilder;
 import org.aiwolf.client.lib.DivinationContentBuilder;
 import org.aiwolf.client.lib.DivinedResultContentBuilder;
@@ -913,6 +914,11 @@ public class SampleBasePlayer implements Player {
 	static Content estimateContent(Agent subject, Agent target, Role role) {
 		return new Content(new EstimateContentBuilder(subject, target, role));
 	}
+	
+	/** 断言 ([Agent]の役職は[Role]だ) */
+	static Content declaredContent(Agent subject, Agent target, Role role) {
+		return new Content(new DeclaredContentBuilder(subject, target, role));
+	}
 
 	/** CO */
 	static Content coContent(Agent subject, Agent target, Role role) {
@@ -946,8 +952,14 @@ public class SampleBasePlayer implements Player {
 	static Content andContent(Agent subject, Content... contents) {
 		return new Content(new AndContentBuilder(subject, contents));
 	}
+	static Content andContent(Agent subject, List<Content> contents) {
+		return new Content(new AndContentBuilder(subject, contents));
+	}
 
 	static Content orContent(Agent subject, Content... contents) {
+		return new Content(new OrContentBuilder(subject, contents));
+	}
+	static Content orContent(Agent subject, List<Content> contents) {
 		return new Content(new OrContentBuilder(subject, contents));
 	}
 
