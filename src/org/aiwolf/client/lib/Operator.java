@@ -68,5 +68,12 @@ public enum Operator {
 	 *
 	 * <div lang="en">XOR</div>
 	 */
-	XOR
+	XOR,
+	
+	/**
+	 * <div lang="ja">IF</div>
+	 *
+	 * <div lang="en">IF</div>
+	 */
+	IF
 }

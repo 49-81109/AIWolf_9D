@@ -165,12 +165,19 @@ public class Content implements Cloneable {
 	private static final String regDigit = "(\\d+)";
 	private static final String TERM = "$";
 	private static final String SP = "\\s+";
+	/** 賛否パターン */
 	private static final Pattern agreePattern = Pattern.compile(regSubject + "(AGREE|DISAGREE)" + regTalk + TERM);
+	/** 推定パターン */
 	private static final Pattern estimatePattern = Pattern.compile(regSubject + "(ESTIMATE|COMINGOUT)" + regAgent + regRoleResult + TERM);
+	/** 占い霊能結果通知パターン */
 	private static final Pattern divinedPattern = Pattern.compile(regSubject + "(DIVINED|IDENTIFIED)" + regAgent + regRoleResult + TERM);
+	/** 行動宣言/行動結果(占い霊能結果除く)通知パターン */
 	private static final Pattern attackPattern = Pattern.compile(regSubject + "(ATTACK|ATTACKED|DIVINATION|GUARD|GUARDED|VOTE|VOTED)" + regAgent + TERM);
+	/** 要求パターン */
 	private static final Pattern requestPattern = Pattern.compile(regSubject + "(REQUEST|INQUIRE)" + regAgent + SP + regParen + TERM);
-	private static final Pattern becausePattern = Pattern.compile(regSubject + "(BECAUSE|AND|OR|XOR|NOT|REQUEST)" + SP + regParen + TERM);
+	/** 演算子/理由パターン */
+	private static final Pattern becausePattern = Pattern.compile(regSubject + "(BECAUSE|IF|AND|OR|XOR|NOT|REQUEST)" + SP + regParen + TERM);
+	/** 日にちパターン */
 	private static final Pattern dayPattern = Pattern.compile(regSubject + "DAY" + SP + regDigit + SP + regParen + TERM);
 
 	/**
@@ -236,7 +243,7 @@ public class Content implements Cloneable {
 				target = toAgent(m.group(3));
 				contentList = getContents(m.group(4), true);
 			}
-			// BECAUSE,AND,OR,XOR,NOT,REQUEST(ver.2)
+			// BECAUSE,IF,AND,OR,XOR,NOT,REQUEST(ver.2)
 			else if ((m = becausePattern.matcher(trimmed)).find()) {
 				topic = Topic.OPERATOR;
 				subject = toAgent(m.group(1));
@@ -501,6 +508,7 @@ public class Content implements Cloneable {
 						+ ")";
 				break;
 			case BECAUSE:
+			case IF:
 			case XOR:
 				text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
 						+ operator.toString()
@@ -668,6 +676,7 @@ public class Content implements Cloneable {
 						+ ")";
 				break;
 			case BECAUSE:
+			case IF:
 			case XOR:
 				retext = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
 						+ operator.toString()

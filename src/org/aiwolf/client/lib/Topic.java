@@ -126,6 +126,7 @@ public enum Topic {
 	 */
 	OPERATOR;
 
+
 	/**
 	 * <div lang="ja">文字列が表すTopicを返す．演算子の場合は{@code OPERATOR}を返す</div>
 	 *
