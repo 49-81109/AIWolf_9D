@@ -168,7 +168,7 @@ public class Content implements Cloneable {
 	/** 賛否パターン */
 	private static final Pattern agreePattern = Pattern.compile(regSubject + "(AGREE|DISAGREE)" + regTalk + TERM);
 	/** 推定パターン */
-	private static final Pattern estimatePattern = Pattern.compile(regSubject + "(ESTIMATE|COMINGOUT)" + regAgent + regRoleResult + TERM);
+	private static final Pattern estimatePattern = Pattern.compile(regSubject + "(ESTIMATE|DECLARED|COMINGOUT)" + regAgent + regRoleResult + TERM);
 	/** 占い霊能結果通知パターン */
 	private static final Pattern divinedPattern = Pattern.compile(regSubject + "(DIVINED|IDENTIFIED)" + regAgent + regRoleResult + TERM);
 	/** 行動宣言/行動結果(占い霊能結果除く)通知パターン */
@@ -215,7 +215,7 @@ public class Content implements Cloneable {
 				talkDay = Integer.parseInt(m.group(4));
 				talkID = Integer.parseInt(m.group(5));
 			}
-			// ESTIMATE,COMINGOUT
+			// ESTIMATE,DECLARED,COMINGOUT
 			else if ((m = estimatePattern.matcher(trimmed)).find()) {
 				subject = toAgent(m.group(1));
 				topic = Topic.valueOf(m.group(2));
@@ -471,6 +471,7 @@ public class Content implements Cloneable {
 					+ " " + talkType.toString() + " day" + talkDay + " ID:" + talkID;
 			break;
 		case ESTIMATE:
+		case DECLARED:
 		case COMINGOUT:
 			text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
 					+ topic.toString()
@@ -639,6 +640,7 @@ public class Content implements Cloneable {
 					+ " " + talkType.toString() + " day" + talkDay + " ID:" + talkID;
 			break;
 		case ESTIMATE:
+		case DECLARED:
 		case COMINGOUT:
 			retext = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.getAgentIdx() + " ")
 					+ topic.toString()

@@ -20,6 +20,13 @@ public enum Topic {
 	 * <div lang="en">Estimate</div>
 	 */
 	ESTIMATE,
+	
+	/**
+	 * <div lang="ja">断言</div>
+	 *
+	 * <div lang="en">Declare</div>
+	 */
+	DECLARED,
 
 	/**
 	 * <div lang="ja">カミングアウト</div>
@@ -125,6 +132,8 @@ public enum Topic {
 	 * <div lang="en">Operator</div>
 	 */
 	OPERATOR;
+	
+	
 
 
 	/**
