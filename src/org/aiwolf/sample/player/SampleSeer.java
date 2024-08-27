@@ -578,7 +578,10 @@ public final class SampleSeer extends SampleBasePlayer {
 	/** 占い師視点の整理実行 */
 	@Override
 	public String[][] getSelfBoardArrange(ArrangeToolLink arrange, boolean isPrint) {
-		String[][] data = arrange.executeArrangement(me, myRole);
+		if(currentDataSelf != null && currentArrangeToolLink == arrange) {
+			return currentDataSelf;
+		}
+		String[][] data = arrange.copyData(arrange.executeArrangement(me, myRole));
 		// 潜伏している場合
 		if(!isCo(me)) {
 			// 黒結果
@@ -593,6 +596,7 @@ public final class SampleSeer extends SampleBasePlayer {
 				}
 			}
 		}
+		currentDataSelf = data;
 		if(isPrint) {
 			System.out.println("[" + me.getAgentIdx() + "]" + me.getName() + " → " + myRole + "視点");
 		}

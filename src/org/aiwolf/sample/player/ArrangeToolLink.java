@@ -273,6 +273,11 @@ public class ArrangeToolLink {
 		return optional;
 	}
 	
+	String[][] copyData(String[][] data) {
+		return output1.copyData(data);
+	}
+	
+	
 	/** 入力データ確認 */
 	void printInput() {
 		if(output1 == null) {

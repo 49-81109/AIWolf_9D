@@ -90,8 +90,23 @@ public class SampleBasePlayer implements Player {
 	/** 最新の盤面整理ツールリンク */
 	ArrangeToolLink currentArrangeToolLink;
 	
-	/** 昨日の盤面整理ツールリンク */
+	/** 村視点での整理データ */
+	String[][] currentDataEvery;
+	
+	/** 自視点での整理データ(人外は自身が人外の視点) */
+	String[][] currentDataSelf;
+	
+	/** 自身のCO役職視点での整理データ */
+	Map<Agent, String[][]> currentDataCO = new HashMap<>();
+	
+	/** 以前の盤面整理ツールリンク */
 	Map<Integer, ArrangeToolLink> totalLink = new HashMap<>();
+	
+	/** 以前の全体盤面整理データ */
+	Map<Integer, String[][]> totalEveryData = new HashMap<>();
+	
+	/** 以前の全体盤面整理データ */
+	Map<Agent, String[][]> yesterdayCoDataList = new HashMap<>();
 
 	/** 自分以外の生存エージェント */
 	List<Agent> aliveOthers;
@@ -276,6 +291,7 @@ public class SampleBasePlayer implements Player {
 		voteList.clear();
 		totalLink.clear();
 		speakResultList.clear();
+		totalEveryData.clear();
 		executedFoxDay = -1;
 		roleCast = gameSetting.getRoleNumMap();
 		playerNum = gameSetting.getPlayerNum();
@@ -291,16 +307,31 @@ public class SampleBasePlayer implements Player {
 			if(currentArrangeToolLink != null) {
 				totalLink.put(day, currentArrangeToolLink);
 			}
+			if(currentDataEvery != null) {
+				totalEveryData.put(day, currentDataEvery);
+			}
 			day = currentGameInfo.getDay();
 			// 昨日のGameInfoを格納
 			yesterdayGameInfo = before;
+			/*
+			yesterdayCoDataList.clear();
+			for(Agent a : before.getAliveAgentList()) {
+				if(currentArrangeToolLink != null) { 
+					String[][] agentdata = getCOBoardArrange(currentArrangeToolLink, a, false);
+					yesterdayCoDataList.put(a, agentdata);
+				}
+			}
+			//*/
 			currentArrangeToolLink = null;
+			currentDataEvery = null;
+			currentDataSelf = null;
+			currentDataCO.clear();
 			return;
 		}
 		// 2回目の呼び出し以降
 		// （夜限定）追放されたエージェントを登録
 		addExecutedAgent(currentGameInfo.getLatestExecutedAgent());
-		//System.out.println("resis exe : " + currentGameInfo.getLatestExecutedAgent());
+		
 		// GameInfo.talkListからカミングアウト・占い報告・霊媒報告を抽出
 		for (int i = talkListHead; i < currentGameInfo.getTalkList().size(); i++) {
 			Talk talk = currentGameInfo.getTalkList().get(i);
@@ -555,22 +586,35 @@ public class SampleBasePlayer implements Player {
 			}
 		}
 		if(day > 1) {
+			/*
 			if(totalLink.containsKey(day - 1)) {
 				// 昨日時点のデータ
 				ArrangeToolLink ye = totalLink.get(day - 1);
 				for(Agent agent : currentGameInfo.getAgentList()) {
-					// 各Agent視点での昨日のデータを入手
-					String[][] agentdata = getCOBoardArrange(ye, agent, false);
-					// Agent視点での確定村人陣営
-					List<Agent> DisitionSv = ye.getDisitionSvList(agentdata);
-					// Agent視点での確定人狼
-//					List<Agent> DisitionRw = ye.getDisitionRwList(agentdata);					
-					// もし昨日の投票先が確定村人陣営の場合、そのAgentを人外リストに追加
+					if(yesterdayCoDataList.containsKey(agent)) {
+						// Agent視点での確定村人陣営
+						List<Agent> DisitionSv = ye.getDisitionSvList(yesterdayCoDataList.get(agent));
+						// Agent視点での確定人狼
+//						List<Agent> DisitionRw = ye.getDisitionRwList(yesterdayCoDataList.get(agent));					
+						// もし昨日の投票先が確定村人陣営の場合、そのAgentを人外リストに追加
+						if(DisitionSv.contains(getVoteTarget(agent, day - 1)) && !arrange.getDisitionSvList(data).contains(agent)) {
+							Swf.add(agent);
+						}
+					}
+				}
+			}
+			//*/
+			//*
+			if(totalEveryData.containsKey(day - 1)) {
+				ArrangeToolLink ye = totalLink.get(day - 1);
+				List<Agent> DisitionSv = ye.getDisitionSvList(totalEveryData.get(day - 1));
+				for(Agent agent : currentGameInfo.getAgentList()) {
 					if(DisitionSv.contains(getVoteTarget(agent, day - 1)) && !arrange.getDisitionSvList(data).contains(agent)) {
 						Swf.add(agent);
 					}
 				}
 			}
+			//*/
 		}
 		return Swf;
 	}
@@ -806,13 +850,21 @@ public class SampleBasePlayer implements Player {
 	
 	/** 村視点の整理実行 */
 	public String[][] getBoardArrange(ArrangeToolLink arrange) {
-		String[][] data = arrange.executeArrangement();
+		if(currentDataEvery != null && currentArrangeToolLink == arrange) {
+			return currentDataEvery;
+		}
+		String[][] data = arrange.copyData(arrange.executeArrangement());
+		currentDataEvery = data;
 		return data;
 	}
 	
 	/** 真視点の整理実行 */
 	public String[][] getSelfBoardArrange(ArrangeToolLink arrange, boolean isPrint) {
-		String[][] data = arrange.executeArrangement(me, myRole);
+		if(currentDataSelf != null && currentArrangeToolLink == arrange) {
+			return currentDataSelf;
+		}
+		String[][] data = arrange.copyData(arrange.executeArrangement(me, myRole));
+		currentDataSelf = data;
 		if(isPrint) {
 			System.out.println("[" + me.getAgentIdx() + "]" + me.getName() + " → " + myRole + "視点");
 		}
@@ -821,6 +873,11 @@ public class SampleBasePlayer implements Player {
 	
 	/** CO役職視点の整理実行 (COなしの場合は村人視点、人外COは除く) */
 	public String[][] getCOBoardArrange(ArrangeToolLink arrange, Agent agent, boolean isPrint) {
+		if(currentDataCO != null) {
+			if(currentDataCO.containsKey(agent) && currentArrangeToolLink == arrange) {
+				return currentDataCO.get(agent);
+			}
+		}
 		Role role = Role.VILLAGER;
 		if(!isNotVillagerSideCo(agent)) {
 			if(isCo(agent)) {
@@ -829,12 +886,14 @@ public class SampleBasePlayer implements Player {
 				}
 			}
 		}
-		return getBoardArrange(arrange, agent, role, isPrint);
+		String[][] data = getBoardArrange(arrange, agent, role, isPrint);
+		currentDataCO.put(agent, data);
+		return data;
 	}
 	
 	/** 各視点で整理実行 */
 	public String[][] getBoardArrange(ArrangeToolLink arrange, Agent agent, Role role, boolean isPrint) {
-		String[][] data = arrange.executeArrangement(agent, role);
+		String[][] data = arrange.copyData(arrange.executeArrangement(agent, role));
 		if(isPrint) {
 			System.out.println("[" + agent.getAgentIdx() + "]" + agent.getName() + " → " + role + "視点");
 		}
@@ -843,13 +902,13 @@ public class SampleBasePlayer implements Player {
 	
 	/** 追加条件で整理 */
 	public String[][] getBoardArrange(ArrangeToolLink arrange, String[][] data, Agent agent, Role role) {
-		String[][] data2 = arrange.executeArrangement(data, agent, role);
+		String[][] data2 = arrange.copyData(arrange.executeArrangement(data, agent, role));
 		return data2;
 	}
 	
 	/** 追加条件で整理 */
 	public String[][] getBoardArrange(ArrangeToolLink arrange, String[][] data, Agent agent, Role role, boolean isDisi) {
-		String[][] data2 = arrange.executeArrangement(data, agent, role, isDisi);
+		String[][] data2 = arrange.copyData(arrange.executeArrangement(data, agent, role, isDisi));
 		return data2;
 	}
 
