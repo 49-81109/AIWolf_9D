@@ -26,15 +26,17 @@ public class ArrangeToolLink {
 	private output output1;
 	private String[][] data;
 	private Map<Role, String> roleName = new HashMap<>();
+	private final boolean isSeerCameout;
 	// 狂人いれるとバグるので注意
 	final String roles;
 	final private List<Role> rolelabel;
 	final int roleNum;
+
+	
 	
  	ArrangeToolLink(SampleBasePlayer base) {
 		this.base = base;
 		this.day = base.day;
-		
 		roleName.put(Role.VILLAGER, "村人");
 		roleName.put(Role.SEER, "占い師");
 		roleName.put(Role.MEDIUM, "霊能者");
@@ -70,6 +72,7 @@ public class ArrangeToolLink {
 		roles = roles.substring(0, roles.length() - 1) + "];\n";
 		this.roles = roles;
 		this.input = makeInput();
+		this.isSeerCameout = base.isCo(Role.SEER);
 //		System.out.println(input);
 		executeTotalArrange();
 	}
@@ -276,6 +279,11 @@ public class ArrangeToolLink {
 			return;
 		}
 		output1.printInput();
+	}
+	
+	/** 占い師COがあるか確認 */
+	boolean isSeerCO() {
+		return isSeerCameout;
 	}
 	
 	/** dataからagentの役職候補を取得 */
