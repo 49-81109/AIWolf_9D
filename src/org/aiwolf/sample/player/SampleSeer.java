@@ -19,7 +19,7 @@ import org.aiwolf.common.data.Species;
 import org.aiwolf.common.data.Vote;
 import org.aiwolf.common.net.GameInfo;
 import org.aiwolf.common.net.GameSetting;
-import org.aiwolf.sample.player.ArrangeToolLink;
+//import org.aiwolf.sample.player.ArrangeToolLink;
 
 /**
  * 占い師役エージェントクラス
@@ -353,120 +353,10 @@ public final class SampleSeer extends SampleBasePlayer {
 	@Override
 	void chooseFinalVoteCandidate() {
 		if (!isRevote) {
-			// 盤面整理ツールに連携
-			ArrangeToolLink arrange = getArrangeLink();
-			// 全視点での整理
-			String[][] every = getBoardArrange(arrange);
-			// 自分が占い師視点での整理
-			String[][] self = getSelfBoardArrange(arrange, false);
-			// 人外候補リストの更新
-			SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
-			
-			// 残り吊り縄が1の場合、または妖狐が確定で死亡している場合、人狼候補に対して投票
-			if(arrange.getTotalState(self).get("count-expelled") == 1 || arrange.getTotalState(self).get("max-a-Rf") == 0) {
-//				System.out.println("fox dead or count-expelled = 1");
-				// 確定人狼がいる場合
-				if(arrange.getTotalState(self).get("disi-a-Rw") > 0) {
-					for(Agent wolf : arrange.getDisitionRwList(self)) {
-						wolfCandidates.add(wolf);
-					}
-					voteCandidate = randomSelect(arrange.getDisitionRwList(self));
-					return;
-				}
-				// 人狼COしたプレイヤーがいる場合
-				List<Agent> werewolfCOList = new ArrayList<>();
-				for(Agent a : currentGameInfo.getAliveAgentList()) {
-					if(NotVillagerSideCOMap.get(a) == Role.WEREWOLF) {
-						wolfCandidates.add(a);
-						werewolfCOList.add(a);
-					}
-				}
-				if(werewolfCOList.size() > 0) {
-					voteCandidate = randomSelect(werewolfCOList);
-					return;
-				}
-				// 確定人外がいる場合
-				if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
-					for(Agent Swf : arrange.getDisitionSwfList(self)) {
-						wolfCandidates.add(Swf);
-					}
-					voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
-					return;
-				}
-				// 人外候補がいる場合
-				if(toAliveList(SwfCandidates).size() > 0) {
-					voteCandidate = randomSelect(toAliveList(SwfCandidates));
-					return;
-				}
-				// それ以外の場合は確白を除いたプレイヤーからランダム
-				voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList()));
+			// 盤面整理ツールと連携 (うまくいかなかった場合はfalseが返される)
+			if(chooseVoteWithArrangeTool(false)) {
 				return;
 			}
-			
-			// 妖狐が確定生存の場合
-			if(arrange.getTotalState(self).get("min-a-Rf") == 1) {
-//				System.out.println("fox alive");
-				// 確定白人外(妖狐or背徳者)がいる場合
-				if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
-					List<Agent> disitionSfList = arrange.getDisitionSwfList(self).stream().filter(a -> arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList());
-					if(disitionSfList.size() > 0) {
-						voteCandidate = randomSelect(disitionSfList);
-						return;
-					}
-				}
-				// 妖狐or背徳者COしたプレイヤーがいる場合
-				List<Agent> SfCOList = new ArrayList<>();
-				for(Agent a : currentGameInfo.getAliveAgentList()) {
-					if(NotVillagerSideCOMap.get(a) == Role.FOX || NotVillagerSideCOMap.get(a) == Role.IMMORALIST) {
-						SfCOList.add(a);
-					}
-				}
-				if(SfCOList.size() > 0) {
-					voteCandidate = randomSelect(SfCOList);
-					return;
-				}
-				// 残り2縄の場合、妖狐が否定されてないプレイヤーからランダム
-				if(arrange.getTotalState(self).get("count-expelled") == 2) {
-					// 人外候補がいる場合
-					if(toAliveList(SwfCandidates).size() > 0) {
-						voteCandidate = randomSelect(toAliveList(SwfCandidates));
-						return;
-					}
-					voteCandidate = randomSelect(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(self, Role.FOX).contains(a)).collect(Collectors.toList()));
-					return;
-				}
-				// 残り縄数が3のとき占い師COが2人以下の場合占い師を投票候補から外す、また人狼COが2人以下の場合も人狼を投票候補から外す. 逆に占い師COが4人以上の場合は占い師から投票する
-				if(arrange.getTotalState(self).get("count-expelled") == 3) {
-					// 生存者から確定人狼候補は投票先から外す
-					List<Agent> voteCandidates = aliveOthers.stream().filter(a -> !arrange.getDisitionRwList(self).contains(a)).collect(Collectors.toList());
-					
-					if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() < 3) {
-						voteCandidates = voteCandidates.stream().filter(a -> !arrange.agentCandidate(every, Role.SEER).contains(a)).collect(Collectors.toList());
-					}
-					if(aliveOthers.stream().filter(a -> NotVillagerSideCOMap.get(a) == Role.WEREWOLF).count() < 3) {
-						voteCandidates = voteCandidates.stream().filter(a -> NotVillagerSideCOMap.get(a) != Role.WEREWOLF).collect(Collectors.toList());
-					}
-					if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() > 3) {
-						voteCandidates = voteCandidates.stream().filter(a -> arrange.agentCandidate(every, Role.SEER).contains(a) && a != me).collect(Collectors.toList());
-						// もし白先に対抗占い師がいた場合、その対抗に投票
-						List<Agent> pretendRi = voteCandidates.stream().filter(a -> whiteList.contains(a)).collect(Collectors.toList());
-						if(pretendRi.size() > 0) {
-							voteCandidate = randomSelect(pretendRi);
-							return;
-						}
-					}
-					// 確定村人陣営を投票候補から外す
-					voteCandidates = voteCandidates.stream().filter(a -> !arrange.getDisitionSvList(self).contains(a)).collect(Collectors.toList());
-					voteCandidate = randomSelect(voteCandidates);
-					return;
-				}
-				// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
-				voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(self).contains(a)).collect(Collectors.toList()));
-				return;
-			}
-				
-			
-			
 			
 			// 人狼（候補）が見つけられなかった場合，初回投票では投票リクエストに応じる
 			if (aliveWolves.isEmpty() && wolfCandidates.isEmpty()) {
@@ -492,6 +382,148 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 	}
 
+	private boolean chooseVoteWithArrangeTool(boolean isTalk) {
+		// 盤面整理ツールに連携
+		ArrangeToolLink arrange = getArrangeLink();
+		// 全視点での整理
+		String[][] every = getBoardArrange(arrange);
+		// 自分が村人視点での整理
+		String[][] self = getSelfBoardArrange(arrange, false);
+		// 人外候補リストの更新
+		SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
+		
+		// 残り吊り縄が1の場合、または妖狐が確定で死亡している場合、人狼候補に対して投票
+		if(arrange.getTotalState(self).get("count-expelled") == 1 || arrange.getTotalState(self).get("max-a-Rf") == 0) {
+			chooseVoteToWolf(arrange, every, self, false);
+			return true;
+		}
+		
+		// 妖狐が確定生存の場合
+		if(arrange.getTotalState(self).get("min-a-Rf") == 1) {
+			// 確定白人外(妖狐or背徳者)がいる場合
+			if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
+				List<Agent> disitionSfList = arrange.getDisitionSwfList(self).stream().filter(a -> arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList());
+				if(disitionSfList.size() > 0) {
+					voteCandidate = randomSelect(disitionSfList);
+					return true;
+				}
+			}
+			// 妖狐or背徳者COしたプレイヤーがいる場合
+			List<Agent> SfCOList = new ArrayList<>();
+			for(Agent a : currentGameInfo.getAliveAgentList()) {
+				if(NotVillagerSideCOMap.get(a) == Role.FOX || NotVillagerSideCOMap.get(a) == Role.IMMORALIST) {
+					SfCOList.add(a);
+				}
+			}
+			if(SfCOList.size() > 0) {
+				voteCandidate = randomSelect(SfCOList);
+				return true;
+			}
+			// 残り2縄の場合、妖狐が否定されてないプレイヤーからランダム
+			if(arrange.getTotalState(self).get("count-expelled") == 2) {
+				chooseVoteToFox(arrange, every, self, false);
+				return true;
+			}
+			// 残り縄数が3のとき占い師COが2人以下の場合対抗(ただし確定背徳者を除く)を投票候補から外す、また人狼COが2人以下の場合も人狼を投票候補から外す. 逆に占い師COが4人以上の場合は対抗占い師から投票する
+			if(arrange.getTotalState(self).get("count-expelled") == 3) {
+				chooseVoteLeave3(arrange, every, self, false);
+				return true;
+			}
+			// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
+			voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(self).contains(a)).collect(Collectors.toList()));
+			return true;
+		}
+		return false;
+	}
+	
+	/** 人狼狙いの投票 (投票関数優先度:1) */
+	private void chooseVoteToWolf(ArrangeToolLink arrange, String[][] every, String[][] self, boolean isTalk) {
+		// 確定人狼がいる場合
+		if(arrange.getTotalState(self).get("disi-a-Rw") > 0) {
+			for(Agent wolf : arrange.getDisitionRwList(self)) {
+				wolfCandidates.add(wolf);
+			}
+			voteCandidate = randomSelect(arrange.getDisitionRwList(self));
+			return;
+		}
+		// 人狼COしたプレイヤーがいる場合
+		List<Agent> werewolfCOList = new ArrayList<>();
+		for(Agent a : currentGameInfo.getAliveAgentList()) {
+			if(NotVillagerSideCOMap.get(a) == Role.WEREWOLF) {
+				wolfCandidates.add(a);
+				werewolfCOList.add(a);
+			}
+		}
+		if(werewolfCOList.size() > 0) {
+			voteCandidate = randomSelect(werewolfCOList);
+			return;
+		}
+		// 確定人外がいる場合
+		if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
+			for(Agent Swf : arrange.getDisitionSwfList(self)) {
+				wolfCandidates.add(Swf);
+			}
+			voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
+			return;
+		}
+		// 人外候補がいる場合
+		if(toAliveList(SwfCandidates).size() > 0) {
+			voteCandidate = randomSelect(toAliveList(SwfCandidates));
+			return;
+		}
+		// それ以外の場合は確白を除いたプレイヤーからランダム
+		voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList()));
+		return;
+	}
+
+	/** 妖狐狙いの投票 (投票関数優先度:2) */
+	private void chooseVoteToFox(ArrangeToolLink arrange, String[][] every, String[][] self, boolean isTalk) {
+		// 盤面上で確定人外がいる場合
+		if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
+			for(Agent Swf : arrange.getDisitionSwfList(self)) {
+				wolfCandidates.add(Swf);
+			}
+			voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
+			return;
+		}
+		// 人外候補がいる場合
+		if(toAliveList(SwfCandidates).size() > 0) {
+			voteCandidate = randomSelect(toAliveList(SwfCandidates));
+			return;
+		}
+		voteCandidate = randomSelect(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(self, Role.FOX).contains(a)).collect(Collectors.toList()));
+		return;
+	}
+	
+	/** 3縄ある場合の投票 (投票関数優先度:3) */
+	private void chooseVoteLeave3(ArrangeToolLink arrange, String[][] every, String[][] self, boolean isTalk) {
+		// 生存者から確定人狼候補は投票先から外す
+		List<Agent> voteCandidates = aliveOthers.stream().filter(a -> !arrange.getDisitionRwList(self).contains(a)).collect(Collectors.toList());
+		
+		if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() < 3) {
+			voteCandidates = voteCandidates.stream().filter(a -> !arrange.agentCandidate(self, Role.SEER).contains(a)).collect(Collectors.toList());
+			// 占い師が2CO以下の場合、初日の黒先を投票候補から外す
+			for(Judge j : getDivinationList()) {
+				if(j.getResult() == Species.WEREWOLF) {
+					voteCandidates = voteCandidates.stream().filter(a -> a != j.getTarget()).collect(Collectors.toList());
+				}
+			}
+		}
+		if(aliveOthers.stream().filter(a -> NotVillagerSideCOMap.get(a) == Role.WEREWOLF).count() < 3) {
+			voteCandidates = voteCandidates.stream().filter(a -> NotVillagerSideCOMap.get(a) != Role.WEREWOLF).collect(Collectors.toList());
+		}
+		if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() > 3) {
+			// 対抗占い師に投票 (白先対抗がいる場合はこの前の関数ですでに投票候補になっている)
+			voteCandidates = voteCandidates.stream().filter(a -> arrange.agentCandidate(every, Role.SEER).contains(a) && a != me).collect(Collectors.toList());
+			voteCandidate = randomSelect(voteCandidates);
+			return;
+		}
+		// 確定村人陣営を投票候補から外す
+		voteCandidates = voteCandidates.stream().filter(a -> !arrange.getDisitionSvList(self).contains(a)).collect(Collectors.toList());
+		voteCandidate = randomSelect(voteCandidates);
+		return;
+	}
+	
 	@Override
 	public String talk() {
 		// カミングアウトする日になったら，あるいは占い結果が人狼だったら, またはその日の犠牲者が2人以上いる場合
@@ -518,8 +550,8 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 		return super.talk();
 	}
-
-	@Override
+	
+@Override
 	public Agent divine() {
 //		System.out.println(day + "divine-------------------------------------------------");
 		// 2日目の占い先(dayは1になっている)
