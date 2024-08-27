@@ -52,6 +52,12 @@ public final class SampleSeer extends SampleBasePlayer {
 
 	/** 灰リスト */
 	private List<Agent> grayList = new ArrayList<>();
+	
+	/** 呪殺確定リスト */
+	private List<Agent> cursedList = new ArrayList<>();
+	
+	/** 占い予告リスト(ゾーン) */
+	private List<Agent> zone = new ArrayList<>();
 
 	/** 宣言済みの裏切り者 */
 	private Agent declaredPossessed;
@@ -78,13 +84,14 @@ public final class SampleSeer extends SampleBasePlayer {
 		whiteList.clear();
 		blackList.clear();
 		grayList = new ArrayList<>(aliveOthers);
+		cursedList.clear();
 		declaredPossessed = null;
 	}
 
 	@Override
 	public void dayStart() {
 		super.dayStart();
-
+		zone.clear();
 		// 占い結果を登録し，白黒に振り分ける
 		Judge divination = currentGameInfo.getDivineResult();
 		if (divination != null) {
@@ -93,6 +100,10 @@ public final class SampleSeer extends SampleBasePlayer {
 			grayList.remove(divined);
 			if (divination.getResult() == Species.HUMAN) {
 				whiteList.add(divined);
+				// 2犠牲者以上いた場合は呪殺確定
+				if(currentGameInfo.getLastDeadAgentList().size() > 1) {
+					cursedList.add(divined);
+				}
 			} else {
 				blackList.add(divined);
 			}
@@ -554,6 +565,11 @@ public final class SampleSeer extends SampleBasePlayer {
 @Override
 	public Agent divine() {
 //		System.out.println(day + "divine-------------------------------------------------");
+		List<Agent> divineCandidates = grayList.stream().filter(a -> isAlive(a)).collect(Collectors.toList());
+		// ゾーンをとっていた場合はゾーン内のプレイヤーから占う
+		if(divineCandidates.stream().filter(a -> zone.contains(a)).collect(Collectors.toList()).size() > 0) {
+			divineCandidates = divineCandidates.stream().filter(a -> zone.contains(a)).collect(Collectors.toList());
+		}
 		// 2日目の占い先(dayは1になっている)
 		if(day == 1) {
 			/** 基本方針としては「妖狐を狙う」
@@ -562,14 +578,15 @@ public final class SampleSeer extends SampleBasePlayer {
 			 */
 			// もし初日の追放者の投票先のAgentがその追放者に投票を入れていた場合、確率P_Executed_CrossVoteでそのAgentを占う
 			Agent executedVoteTar = getVoteTarget(currentGameInfo.getLatestExecutedAgent(), 1);
-			if(getVoteTarget(executedVoteTar, 1) == currentGameInfo.getLatestExecutedAgent() && grayList.contains(executedVoteTar) && randP(P_Executed_CrossVote)) {
+			if(getVoteTarget(executedVoteTar, 1) == currentGameInfo.getLatestExecutedAgent() && grayList.contains(executedVoteTar) && randP(P_Executed_CrossVote) && divineCandidates.contains(executedVoteTar)) {
 				return executedVoteTar;
 			}
 			// そうでない場合、1票以下のAgentからランダム
-			List<Agent> candidates = grayList.stream().filter(a -> isAlive(a) && getVotedCount(a, 1) < 2).collect(Collectors.toList());
+			List<Agent> candidates = divineCandidates.stream().filter(a -> isAlive(a) && getVotedCount(a, 1) < 2).collect(Collectors.toList());
 			// 確率P_VoteToExecutedで追放者に投票していた人からランダムに占う
-			if(candidates.stream().filter(a -> getVoteAgent(currentGameInfo.getLatestExecutedAgent(), 1).contains(a)).collect(Collectors.toList()).size() > 0 && randP(P_VoteToExecuted)) {
-				return randomSelect(candidates.stream().filter(a -> getVoteAgent(currentGameInfo.getLatestExecutedAgent(), 1).contains(a)).collect(Collectors.toList()));
+			List<Agent> VoteToExecuted = candidates.stream().filter(a -> getVoteAgent(currentGameInfo.getLatestExecutedAgent(), 1).contains(a)).collect(Collectors.toList());
+			if(VoteToExecuted.size() > 0 && randP(P_VoteToExecuted)) {
+				return randomSelect(VoteToExecuted);
 			}
 			if(candidates.size() > 0) {
 				return randomSelect(candidates);
@@ -589,17 +606,19 @@ public final class SampleSeer extends SampleBasePlayer {
 				}
 			}
 			// 死亡者が投票してない位置の中からランダムに占う
-			List<Agent> candidates = currentGameInfo.getAliveAgentList().stream().filter(a -> !deadVotedTar.contains(a) && grayList.contains(a)).collect(Collectors.toList());
+			List<Agent> candidates = divineCandidates.stream().filter(a -> !deadVotedTar.contains(a)).collect(Collectors.toList());
 			if(candidates.size() > 0) {
 				return randomSelect(candidates);
 			}
 		}
+		/*
 		// 人狼候補がいればそれらからランダムに占う
 		if (!wolfCandidates.isEmpty()) {
 			return randomSelect(wolfCandidates);
 		}
+		//*/
 		// 人狼候補がいない場合，まだ占っていない生存者からランダムに占う
-		List<Agent> candidates = grayList.stream().filter(a -> isAlive(a)).collect(Collectors.toList());
+		List<Agent> candidates = divineCandidates;
 		if (candidates.isEmpty()) {
 			return null;
 		}

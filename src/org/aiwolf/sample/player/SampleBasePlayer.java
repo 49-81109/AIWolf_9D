@@ -131,6 +131,12 @@ public class SampleBasePlayer implements Player {
 
 	/** 発言された霊媒結果報告のリスト */
 	List<Judge> identList = new ArrayList<>();
+	
+	/** 占い予告 */
+	Map<Agent, List<Agent>> zoneMap = new HashMap<>();
+	
+	/** 誰かの占い予告先のプレイヤーのリスト */
+	List<Agent> zoneContainList = new ArrayList<>();
 
 	/** 発言用待ち行列 */
 	private Deque<Content> talkQueue = new LinkedList<>();
@@ -370,14 +376,16 @@ public class SampleBasePlayer implements Player {
 				CODayMap.put(content.getTarget(), day);
 			}
 			return;
-		case DIVINED:
-			/*
-			divinationList.add(new Judge(day, content.getSubject(), content.getTarget(), content.getResult()));
-			System.out.println("seer " + day + "day : " + content.getSubject().getName() + " divined " + content.getTarget().getName());
-			if(!speakResultList.contains(content.getSubject())) {
-				speakResultList.add(content.getSubject());
+		case DIVINATION:
+			if(zoneMap.containsKey(content.getSubject())) {
+				List<Agent> zone = zoneMap.get(content.getSubject());
+				zone.add(content.getTarget());
 			}
-			//*/
+			else {
+				List<Agent> zone = new ArrayList<>();
+				zone.add(content.getTarget());
+				zoneMap.put(content.getSubject(), zone);
+			}
 			return;
 		case IDENTIFIED:
 			identList.add(new Judge(day, content.getSubject(), content.getTarget(), content.getResult()));
@@ -441,6 +449,8 @@ public class SampleBasePlayer implements Player {
 		voteRequestCounter.clear();
 		speakResultList.clear();
 		talkedContent.clear();
+		zoneMap.clear();
+		zoneContainList.clear();
 		// 前日に追放されたエージェントを登録
 		addExecutedAgent(currentGameInfo.getExecutedAgent());
 		
