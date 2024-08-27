@@ -273,11 +273,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		chooseFinalVoteCandidate();
 		isRevote = true;
 		if(foxes.contains(voteCandidate)) {
-			System.out.println("*********");
 			List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a)).collect(Collectors.toList());
 			voteCandidate = randomSelect(aliveEnemies);
 		}
-		arrangeTool();
 		return voteCandidate;
 	}
 	
