@@ -716,25 +716,6 @@ public class SampleBasePlayer implements Player {
 	public Agent guard() {
 		return null;
 	}
-
-	// 盤面整理ツール実行
-	public void arrangeTool() {
-		ArrangeToolLink arrange = getArrangeLink();
-//		arrange.printInput();
-		// 真視点でのデータ
-		String[][] data = getSelfBoardArrange(arrange, false);
-//		String[][] data = getSelfBoardArrange(arrange, true);
-//		arrange.printroleCandidate(data);
-		//arrange.printData(data);
-		//arrange.printagentCandidate(data);
-//		arrange.printStatus(data);
-		/*
-		for(Agent a : getWantExecuteTarget(me)) {
-			System.out.print(a.getName() + " ");
-		}
-		System.out.println();
-		//*/
-	}
 	
 	@Override
 	public void finish() {
