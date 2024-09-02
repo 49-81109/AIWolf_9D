@@ -14,6 +14,7 @@ import org.aiwolf.common.data.Agent;
 import org.aiwolf.common.data.Judge;
 import org.aiwolf.common.data.Role;
 import org.aiwolf.common.data.Species;
+import org.aiwolf.common.data.Status;
 import org.aiwolf.common.data.Vote;
 import org.aiwolf.common.net.GameInfo;
 import org.aiwolf.common.net.GameSetting;
@@ -74,6 +75,7 @@ public final class SampleVillager extends SampleBasePlayer {
 					}
 				}
 			}
+			chooseVoteWithArrangeTool(true);
 		}
 		
 		// 村人目線での人狼候補決定アルゴリズム
@@ -164,7 +166,7 @@ public final class SampleVillager extends SampleBasePlayer {
 		
 		// 残り吊り縄が1の場合、または妖狐が確定で死亡している場合、人狼候補に対して投票
 		if(arrange.getTotalState(self).get("count-expelled") == 1 || arrange.getTotalState(self).get("max-a-Rf") == 0) {
-			chooseVoteToWolf(arrange, every, self, false);
+			chooseVoteToWolf(arrange, every, self, isTalk);
 			return true;
 		}
 		
@@ -175,6 +177,35 @@ public final class SampleVillager extends SampleBasePlayer {
 				List<Agent> disitionSfList = arrange.getDisitionSwfList(self).stream().filter(a -> arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList());
 				if(disitionSfList.size() > 0) {
 					voteCandidate = randomSelect(disitionSfList);
+					if(isTalk) {
+						if(getCoRole(voteCandidate) == Role.SEER) {
+							if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
+								// 1.黒先が死亡しているが終わらない
+								if(!isAlive(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+									Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+									Content reason = andContent(me, divined, declaredStatusContent(me, Role.WEREWOLF, Status.ALIVE), notContent(me, estimateContent(me, voteCandidate, Role.WEREWOLF)));
+									estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.FOX, Role.IMMORALIST));
+									voteReasonMap.put(me, voteCandidate, reason);
+								}
+								// 2.黒先が盤面上確白である
+								else if(arrange.getDisitionNRwList(every).contains(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+									Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+									Content reason = andContent(me, divined, notContent(me, estimateContent(me, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Role.WEREWOLF)), notContent(me, estimateContent(me, voteCandidate, Role.WEREWOLF)));
+									estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.FOX, Role.IMMORALIST));
+									voteReasonMap.put(me, voteCandidate, reason);
+								}
+							}
+							// 3.生存者の中に狼候補がいない
+							if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
+//								Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+							}
+							// 4.2人以上に黒を出しているなど
+							Content reason = orContent(me, estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
+							voteReasonMap.put(me, voteCandidate, reason);
+						}
+						Content reason = orContent(me, estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
+						voteReasonMap.put(me, voteCandidate, reason);
+					}
 					return true;
 				}
 			}
@@ -192,12 +223,12 @@ public final class SampleVillager extends SampleBasePlayer {
 			// 占い師が確定で死亡していて残り2縄の場合、妖狐が否定されてないプレイヤーからランダム
 			List<Agent> seerAliveCandidates = currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(self, Role.SEER).contains(a)).collect(Collectors.toList());
 			if(seerAliveCandidates.size() == 0 && arrange.getTotalState(self).get("count-expelled") == 2) {
-				chooseVoteToFox(arrange, every, self, false);
+				chooseVoteToFox(arrange, every, self, isTalk);
 				return true;
 			}
 			// 残り縄数が3のとき占い師COが2人以下の場合占い師を投票候補から外す、また人狼COが2人以下の場合も人狼を投票候補から外す. 逆に占い師COが4人以上の場合は占い師から投票する
 			if(arrange.getTotalState(self).get("count-expelled") == 3) {
-				chooseVoteLeave3(arrange, every, self, false);
+				chooseVoteLeave3(arrange, every, self, isTalk);
 				return true;
 			}
 			// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
@@ -215,6 +246,55 @@ public final class SampleVillager extends SampleBasePlayer {
 				wolfCandidates.add(wolf);
 			}
 			voteCandidate = randomSelect(arrange.getDisitionRwList(self));
+			// 発言生成「妖狐が確定で死亡していて人狼が確定しているAgentがいるのでそのAgentに投票します」
+			if(isTalk && arrange.getTotalState(self).get("max-a-Rf") == 0) {
+				if(arrange.agentDisition(self, Role.SEER).size() == 1) {
+					// 占い師が確定していてその黒先の場合
+					if(getDivinedResultList(arrange.agentDisition(self, Role.SEER).get(0), Species.WEREWOLF).contains(voteCandidate)) {
+						Content disitionSeer = declaredContent(me, arrange.agentDisition(self, Role.SEER).get(0), Role.SEER);
+						Content divined = divinedContent(arrange.agentDisition(self, Role.SEER).get(0), voteCandidate, Species.WEREWOLF);
+						Content reason = andContent(me, disitionSeer, divined, declaredStatusContent(me, Role.FOX, Status.DEAD));
+						voteReasonMap.put(me, voteCandidate, reason);
+					}
+					// 占い師騙りをしていて破綻している場合
+					else if(getCoRole(voteCandidate) == Role.SEER) {
+						if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
+							// 1.黒先が死亡しているが終わらない
+							if(!isAlive(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+								Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+								Content reason = andContent(me, divined, declaredStatusContent(me, Role.WEREWOLF, Status.ALIVE), declaredStatusContent(me, Role.FOX, Status.DEAD));
+								estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF));
+								voteReasonMap.put(me, voteCandidate, reason);
+							}
+							// 2.黒先が盤面上確白である
+							else if(arrange.getDisitionNRwList(every).contains(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+								Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+								Content reason = andContent(me, divined, declaredContent(me, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Role.VILLAGER));
+								if(getCoRole(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0)) == Role.SEER) {
+									reason = andContent(me, divined, declaredContent(me, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Role.SEER));
+								}
+								estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF));
+								voteReasonMap.put(me, voteCandidate, reason);
+							}
+						}
+						// 3.生存者の中に狼候補がいない
+						if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
+//							Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+						}
+						// 4.呪殺対応ができていない、2人以上に黒を出しているなど
+						Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+						voteReasonMap.put(me, voteCandidate, reason);
+					}
+					else {
+						Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+						voteReasonMap.put(me, voteCandidate, reason);
+					}
+				}
+				else {
+					Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+					voteReasonMap.put(me, voteCandidate, reason);
+				}
+			}
 			return;
 		}
 		// 人狼COしたプレイヤーがいる場合
@@ -227,6 +307,11 @@ public final class SampleVillager extends SampleBasePlayer {
 		}
 		if(werewolfCOList.size() > 0) {
 			voteCandidate = randomSelect(werewolfCOList);
+			// 発言生成「妖狐が確定で死亡していて人狼COしているAgentがいるのでそのAgentに投票します」
+			if(isTalk && arrange.getTotalState(self).get("max-a-Rf") == 0) {
+				Content reason = andContent(me, coContent(voteCandidate, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+				voteReasonMap.put(me, voteCandidate, reason);
+			}
 			return;
 		}
 		// 確定人外がいる場合
@@ -255,6 +340,33 @@ public final class SampleVillager extends SampleBasePlayer {
 				wolfCandidates.add(Swf);
 			}
 			voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
+			if(isTalk) {
+				if(getCoRole(voteCandidate) == Role.SEER) {
+					if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
+						// 1.黒先が死亡しているが終わらない
+						if(!isAlive(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+							Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+							Content reason = andContent(me, divined, declaredStatusContent(me, Role.WEREWOLF, Status.ALIVE));
+							estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));
+							voteReasonMap.put(me, voteCandidate, reason);
+						}
+						// 2.黒先が盤面上確白である
+						else if(arrange.getDisitionNRwList(every).contains(getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0))) {
+							Content divined = divinedContent(voteCandidate, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Species.WEREWOLF);   
+							Content reason = andContent(me, divined, notContent(me, estimateContent(me, getDivinedResultList(voteCandidate, Species.WEREWOLF).get(0), Role.WEREWOLF)));
+							estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));
+							voteReasonMap.put(me, voteCandidate, reason);
+						}
+					}
+					// 3.生存者の中に狼候補がいない
+					if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
+//						Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+					}
+					// 4.2人以上に黒を出しているなど
+					Content reason = orContent(me, estimateContent(me, voteCandidate, Role.WEREWOLF), estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
+					voteReasonMap.put(me, voteCandidate, reason);
+				}
+			}
 			return;
 		}
 		// 人外候補がいる場合
