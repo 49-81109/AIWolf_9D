@@ -63,6 +63,43 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			}
 		}
 		
+		if(isAllSeerTalkResult() && !(!isCo(Role.SEER) && currentGameInfo.getLastDeadAgentList().size() > 1)) {
+			// 盤面整理ツールに連携
+			ArrangeToolLink arrange = getArrangeLink();
+			// 全視点での整理
+//			String[][] every = getBoardArrange(arrange);
+			// 自分が妖狐視点での整理
+//			String[][] self = getSelfBoardArrange(arrange, false);
+			// 自身が主張する村人陣営役職視点での整理
+			String[][] pretend = getCOBoardArrange(arrange, me, false);
+			// 人外候補リストの更新
+			SwfCandidates = addNonVillagerSideCandidates(arrange, pretend, SwfCandidates);
+			if(!arrange.isBankruptcy(pretend)) {
+				if(arrange.agentDisition(pretend, Role.VILLAGER).size() > 0) {
+					for(Agent villager : arrange.agentDisition(pretend, Role.VILLAGER)) {
+						if(villager != me) {
+							enqueue1Talk(declaredContent(me, villager, Role.VILLAGER));
+						}
+					}
+				}
+				if(arrange.agentDisition(pretend, Role.SEER).size() > 0) {
+					for(Agent seer : arrange.agentDisition(pretend, Role.SEER)) {
+						enqueue1Talk(declaredContent(me, seer, Role.SEER));
+					}
+				}
+				if(arrange.agentDisition(pretend, Role.WEREWOLF).size() > 0) {
+					for(Agent werewolf : arrange.agentDisition(pretend, Role.WEREWOLF)) {
+						enqueue1Talk(declaredContent(me, werewolf, Role.WEREWOLF));
+					}
+				}
+				if(arrange.agentDisition(pretend, Role.FOX).size() > 0) {
+					for(Agent fox : arrange.agentDisition(pretend, Role.FOX)) {
+						enqueue1Talk(declaredContent(me, fox, Role.FOX));
+					}
+				}
+			}
+		}
+		
 		// 村人目線での人狼候補決定アルゴリズム
 		for (Judge divination : getDivinationList()) {
 			// まず占い結果から人狼候補を見つける
@@ -103,7 +140,12 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			if (voteCandidate == null || !isAlive(voteCandidate)) {
 				// できるだけ妖狐以外や非背徳者候補から投票先を決める
 				List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
-				if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
+				
+				// 4人盤面のときは100%の確率で非背徳者候補がいたらそこに入れる
+				if(aliveEnemies.size() > 0 && aliveOthers.size() == 3) {
+					voteCandidate = randomSelect(aliveEnemies);
+				}
+				else if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
 					voteCandidate = randomSelect(aliveEnemies);
 				}
 				else {
