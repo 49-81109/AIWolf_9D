@@ -277,13 +277,15 @@ public final class SampleVillager extends SampleBasePlayer {
 								voteReasonMap.put(me, voteCandidate, reason);
 							}
 						}
-						// 3.生存者の中に狼候補がいない
-						if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
-//							Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+						else {
+							// 3.生存者の中に狼候補がいない
+							if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
+//								Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+							}
+							// 4.呪殺対応ができていない、2人以上に黒を出しているなど
+							Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+							voteReasonMap.put(me, voteCandidate, reason);
 						}
-						// 4.呪殺対応ができていない、2人以上に黒を出しているなど
-						Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
-						voteReasonMap.put(me, voteCandidate, reason);
 					}
 					else {
 						Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
@@ -358,13 +360,15 @@ public final class SampleVillager extends SampleBasePlayer {
 							voteReasonMap.put(me, voteCandidate, reason);
 						}
 					}
-					// 3.生存者の中に狼候補がいない
-					if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
-//						Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+					else {
+						// 3.生存者の中に狼候補がいない
+						if(toAliveList(getDivinedResultList(voteCandidate, Species.HUMAN)).size() == aliveOthers.size()) {
+//							Content reason = estimateContent(voteCandidate, Content.UNSPEC, Role.WEREWOLF);
+						}
+						// 4.2人以上に黒を出しているなど
+						Content reason = orContent(me, estimateContent(me, voteCandidate, Role.WEREWOLF), estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
+						voteReasonMap.put(me, voteCandidate, reason);
 					}
-					// 4.2人以上に黒を出しているなど
-					Content reason = orContent(me, estimateContent(me, voteCandidate, Role.WEREWOLF), estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
-					voteReasonMap.put(me, voteCandidate, reason);
 				}
 			}
 			return;
