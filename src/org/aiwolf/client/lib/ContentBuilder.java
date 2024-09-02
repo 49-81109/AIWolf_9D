@@ -10,6 +10,7 @@ import java.util.List;
 import org.aiwolf.common.data.Agent;
 import org.aiwolf.common.data.Role;
 import org.aiwolf.common.data.Species;
+import org.aiwolf.common.data.Status;
 
 /**
  * <div lang="ja">発話内容ビルダー抽象クラス</div>
@@ -27,6 +28,7 @@ public abstract class ContentBuilder {
 	Agent target = Content.ANY;
 	Role role = null;
 	Species result = null;
+	Status status = null;
 	TalkType talkType = null;
 	int talkDay = -1;
 	int talkID = -1;
@@ -75,6 +77,13 @@ public abstract class ContentBuilder {
 		return result;
 	}
 
+	/**
+	 * @return the status
+	 */
+	Status getStatus() {
+		return status;
+	}
+	
 	/**
 	 * @return the talkType
 	 */

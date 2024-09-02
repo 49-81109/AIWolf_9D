@@ -27,6 +27,20 @@ public enum Topic {
 	 * <div lang="en">Declare</div>
 	 */
 	DECLARED,
+	
+	/**
+	 * <div lang="ja">状態推測</div>
+	 *
+	 * <div lang="en">Estimate</div>
+	 */
+	ESTIMATESTATUS,
+	
+	/**
+	 * <div lang="ja">状態断言</div>
+	 *
+	 * <div lang="en">Declare</div>
+	 */
+	DECLAREDSTATUS,
 
 	/**
 	 * <div lang="ja">カミングアウト</div>

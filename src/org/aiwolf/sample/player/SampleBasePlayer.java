@@ -13,11 +13,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.stream.Collectors;
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-
 
 import org.aiwolf.client.lib.AgreeContentBuilder;
 import org.aiwolf.client.lib.AndContentBuilder;
@@ -28,10 +23,12 @@ import org.aiwolf.client.lib.ComingoutContentBuilder;
 import org.aiwolf.client.lib.Content;
 import org.aiwolf.client.lib.DayContentBuilder;
 import org.aiwolf.client.lib.DeclaredContentBuilder;
+import org.aiwolf.client.lib.DeclaredStatusContentBuilder;
 import org.aiwolf.client.lib.DisagreeContentBuilder;
 import org.aiwolf.client.lib.DivinationContentBuilder;
 import org.aiwolf.client.lib.DivinedResultContentBuilder;
 import org.aiwolf.client.lib.EstimateContentBuilder;
+import org.aiwolf.client.lib.EstimateStatusContentBuilder;
 import org.aiwolf.client.lib.GuardCandidateContentBuilder;
 import org.aiwolf.client.lib.GuardedAgentContentBuilder;
 import org.aiwolf.client.lib.IdentContentBuilder;
@@ -55,7 +52,6 @@ import org.aiwolf.common.data.Talk;
 import org.aiwolf.common.data.Vote;
 import org.aiwolf.common.net.GameInfo;
 import org.aiwolf.common.net.GameSetting;
-import org.aiwolf.sample.player.arrange_tool.*;
 
 /**
  * すべての役職のベースとなるクラス
@@ -755,10 +751,6 @@ public class SampleBasePlayer implements Player {
 				sortedDivineList.add(j);
 			}
 		}
-		
-		for(Judge j : sortedDivineList) {
-//			System.out.println("seer : " + j.getAgent().getName() + "→ " + j.getTarget().getName() + " : day " + j.getDay());
-		}
 		List<Judge> sortedDayDivineList = new ArrayList<>();
 		Map<Agent, Integer> seerResult = new HashMap<>();
 		for(Judge j : sortedDivineList) {
@@ -977,16 +969,26 @@ public class SampleBasePlayer implements Player {
 		return new Content(new GuardedAgentContentBuilder(subject, target));
 	}
 
-	/** 推定 ([Agent]の役職は[Role]だと思う) */
+	/** 推定 ([target]の役職は[role]だと思う) */
 	static Content estimateContent(Agent subject, Agent target, Role role) {
 		return new Content(new EstimateContentBuilder(subject, target, role));
 	}
 	
-	/** 断言 ([Agent]の役職は[Role]だ) */
+	/** 断言 ([target]の役職は[role]だ) */
 	static Content declaredContent(Agent subject, Agent target, Role role) {
 		return new Content(new DeclaredContentBuilder(subject, target, role));
 	}
 
+	/** 状態推定 ([role]は 生存している/死亡している と思う) */
+	static Content estimateStatusContent(Agent subject, Role role, Status status) {
+		return new Content(new EstimateStatusContentBuilder(subject, role, status));
+	}
+	
+	/** 状態断言 ([role]は確定で 生存している/死亡している) */
+	static Content declaredStatusContent(Agent subject, Role role, Status status) {
+		return new Content(new DeclaredStatusContentBuilder(subject, role, status));
+	}
+	
 	/** CO */
 	static Content coContent(Agent subject, Agent target, Role role) {
 		return new Content(new ComingoutContentBuilder(subject, target, role));

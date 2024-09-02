@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import org.aiwolf.common.data.Agent;
 import org.aiwolf.common.data.Role;
 import org.aiwolf.common.data.Species;
+import org.aiwolf.common.data.Status;
 import org.aiwolf.common.data.Talk;
 
 /**
@@ -58,6 +59,7 @@ public class Content implements Cloneable {
 	private Agent target = ANY;
 	private Role role = null;
 	private Species result = null;
+	private Status status = null;
 	private TalkType talkType = null;
 	private int talkDay = -1;
 	private int talkID = -1;
@@ -146,6 +148,7 @@ public class Content implements Cloneable {
 		target = builder.getTarget();
 		role = builder.getRole();
 		result = builder.getResult();
+		status = builder.getStatus();
 		talkType = builder.getTalkType();
 		talkDay = builder.getTalkDay();
 		talkID = builder.getTalkID();
@@ -169,6 +172,8 @@ public class Content implements Cloneable {
 	private static final Pattern agreePattern = Pattern.compile(regSubject + "(AGREE|DISAGREE)" + regTalk + TERM);
 	/** 推定パターン */
 	private static final Pattern estimatePattern = Pattern.compile(regSubject + "(ESTIMATE|DECLARED|COMINGOUT)" + regAgent + regRoleResult + TERM);
+	/** 推定状態パターン */
+	private static final Pattern estimateStatusPattern = Pattern.compile(regSubject + "(ESTIMATE|DECLARED|ESTIMATESTATUS|DECLAREDSTATUS)" + regRoleResult + regRoleResult + TERM);
 	/** 占い霊能結果通知パターン */
 	private static final Pattern divinedPattern = Pattern.compile(regSubject + "(DIVINED|IDENTIFIED)" + regAgent + regRoleResult + TERM);
 	/** 行動宣言/行動結果(占い霊能結果除く)通知パターン */
@@ -221,6 +226,13 @@ public class Content implements Cloneable {
 				topic = Topic.valueOf(m.group(2));
 				target = toAgent(m.group(3));
 				role = Role.valueOf(m.group(4));
+			}
+			// ESTIMATESTATUS,DECLAREDSTATUS
+			else if ((m = estimateStatusPattern.matcher(trimmed)).find()) {
+				subject = toAgent(m.group(1));
+				topic = Topic.valueOf(m.group(2));
+				role = Role.valueOf(m.group(3));
+				status = Status.valueOf(m.group(4));
 			}
 			// DIVINED,IDENTIFIED
 			else if ((m = divinedPattern.matcher(trimmed)).find()) {
@@ -366,6 +378,10 @@ public class Content implements Cloneable {
 	public Species getResult() {
 		return result;
 	}
+	
+	public Status getStatus() {
+		return status;
+	}
 
 	/**
 	 * <div lang="ja">発話内容中で言及されている発言のタイプを返す。発話が単文で，かつTopicが(DIS)AGREEのとき有効</div>
@@ -477,6 +493,13 @@ public class Content implements Cloneable {
 					+ topic.toString()
 					+ " " + (target == ANY ? "ANY" : target.toString())
 					+ " " + role.toString();
+			break;
+		case ESTIMATESTATUS:
+		case DECLAREDSTATUS:
+			text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
+					+ topic.toString().substring(0,8)
+					+ " " + role.toString()
+					+ " " + status.toString();
 			break;
 		case DIVINED:
 		case IDENTIFIED:
@@ -646,6 +669,13 @@ public class Content implements Cloneable {
 					+ topic.toString()
 					+ " " + (target == ANY ? "ANY" : target.toString())
 					+ " " + role.toString();
+			break;
+		case ESTIMATESTATUS:
+		case DECLAREDSTATUS:
+			retext = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.getAgentIdx() + " ")
+					+ topic.toString().substring(0,8)
+					+ " " + role.toString()
+					+ " " + status.toString();
 			break;
 		case DIVINED:
 		case IDENTIFIED:
