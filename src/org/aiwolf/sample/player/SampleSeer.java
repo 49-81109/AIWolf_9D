@@ -16,6 +16,7 @@ import org.aiwolf.common.data.Agent;
 import org.aiwolf.common.data.Judge;
 import org.aiwolf.common.data.Role;
 import org.aiwolf.common.data.Species;
+import org.aiwolf.common.data.Status;
 import org.aiwolf.common.data.Vote;
 import org.aiwolf.common.net.GameInfo;
 import org.aiwolf.common.net.GameSetting;
@@ -114,6 +115,10 @@ public final class SampleSeer extends SampleBasePlayer {
 	@Override
 	void chooseVoteCandidate() {
 		Content iAm = isCameout ? coContent(me, me, Role.SEER) : coContent(me, me, Role.VILLAGER);
+		
+		if(day == 1 && currentGameInfo.getLastDeadAgentList().size() < 2) {
+			enqueue1Talk(declaredStatusContent(me, Role.FOX, Status.ALIVE));
+		}
 		voteCandidateWithArrangeTool();
 		
 
@@ -131,6 +136,8 @@ public final class SampleSeer extends SampleBasePlayer {
 						reason = andContent(me, iAm, heIs, divinedContent(me, he, Species.HUMAN));
 						estimateReasonMap.put(new Estimate(me, he, reason, Role.IMMORALIST));
 						enqueue1Talk(becauseContent(me, reason, declaredContent(me, he, Role.IMMORALIST)));
+						voteReasonMap.put(me, he, declaredContent(me, he, Role.IMMORALIST));
+						// 背徳者基軸からの妖狐位置推定
 						List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a)).collect(Collectors.toList());
 						if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 							List<Content> notVote = new ArrayList<>();
@@ -148,6 +155,8 @@ public final class SampleSeer extends SampleBasePlayer {
 						if(blackList.get(0) != he) {
 							reason = andContent(me, iAm, heIs, divinedContent(me, blackList.get(0), Species.WEREWOLF));
 							estimateReasonMap.put(new Estimate(me, he, reason, Role.FOX, Role.IMMORALIST));
+							voteReasonMap.put(me, he, andContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST)));
+							
 							enqueue1Talk(becauseContent(me, reason, andContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
 							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a)).collect(Collectors.toList());
 							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
@@ -183,7 +192,7 @@ public final class SampleSeer extends SampleBasePlayer {
 				if (isCameout) {
 					Content myDivination = divinedContent(me, voteCandidate, myDivinationMap.get(voteCandidate).getResult());
 					Content reason = dayContent(me, myDivinationMap.get(voteCandidate).getDay(), myDivination);
-					voteReasonMap.put(me, voteCandidate, reason);
+					//voteReasonMap.put(me, voteCandidate, reason);
 				}
 			}
 			return;
@@ -358,6 +367,7 @@ public final class SampleSeer extends SampleBasePlayer {
 					enqueue1Talk(declaredContent(me, immoralist, Role.IMMORALIST));
 				}
 			}	
+			chooseVoteWithArrangeTool(true);
 		}
 	}
 	
@@ -405,7 +415,7 @@ public final class SampleSeer extends SampleBasePlayer {
 		
 		// 残り吊り縄が1の場合、または妖狐が確定で死亡している場合、人狼候補に対して投票
 		if(arrange.getTotalState(self).get("count-expelled") == 1 || arrange.getTotalState(self).get("max-a-Rf") == 0) {
-			chooseVoteToWolf(arrange, every, self, false);
+			chooseVoteToWolf(arrange, every, self, isTalk);
 			return true;
 		}
 		
@@ -416,6 +426,11 @@ public final class SampleSeer extends SampleBasePlayer {
 				List<Agent> disitionSfList = arrange.getDisitionSwfList(self).stream().filter(a -> arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList());
 				if(disitionSfList.size() > 0) {
 					voteCandidate = randomSelect(disitionSfList);
+					// 発言生成「妖狐か背徳者が確定しているAgentがいるのでそのAgentに投票します」
+					if(isTalk) {
+						Content reason = orContent(me, estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
+						voteReasonMap.put(me, voteCandidate, reason);
+					}
 					return true;
 				}
 			}
@@ -432,12 +447,12 @@ public final class SampleSeer extends SampleBasePlayer {
 			}
 			// 残り2縄の場合、妖狐が否定されてないプレイヤーからランダム
 			if(arrange.getTotalState(self).get("count-expelled") == 2) {
-				chooseVoteToFox(arrange, every, self, false);
+				chooseVoteToFox(arrange, every, self, isTalk);
 				return true;
 			}
 			// 残り縄数が3のとき占い師COが2人以下の場合対抗(ただし確定背徳者を除く)を投票候補から外す、また人狼COが2人以下の場合も人狼を投票候補から外す. 逆に占い師COが4人以上の場合は対抗占い師から投票する
 			if(arrange.getTotalState(self).get("count-expelled") == 3) {
-				chooseVoteLeave3(arrange, every, self, false);
+				chooseVoteLeave3(arrange, every, self, isTalk);
 				return true;
 			}
 			// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
@@ -449,15 +464,35 @@ public final class SampleSeer extends SampleBasePlayer {
 	
 	/** 人狼狙いの投票 (投票関数優先度:1) */
 	private void chooseVoteToWolf(ArrangeToolLink arrange, String[][] every, String[][] self, boolean isTalk) {
-		// 確定人狼がいる場合
+		// 1.確定人狼がいる場合
 		if(arrange.getTotalState(self).get("disi-a-Rw") > 0) {
 			for(Agent wolf : arrange.getDisitionRwList(self)) {
 				wolfCandidates.add(wolf);
 			}
 			voteCandidate = randomSelect(arrange.getDisitionRwList(self));
+			// 発言生成「妖狐が確定で死亡していて人狼が確定しているAgentがいるのでそのAgentに投票します」
+			if(isTalk && arrange.getTotalState(self).get("max-a-Rf") == 0) {
+				// 自身の黒先の場合
+				if(blackList.contains(voteCandidate) && isCameout) {
+					Content myDivination = divinedContent(me, voteCandidate, myDivinationMap.get(voteCandidate).getResult());
+					Content reason = andContent(me, myDivination, declaredStatusContent(me, Role.FOX, Status.DEAD));
+					voteReasonMap.put(me, voteCandidate, reason);
+				}
+				// 対抗占い師の場合
+				else if(getCoRole(voteCandidate) == Role.SEER){
+					Content reason = andContent(me, coContent(me, me, Role.SEER), coContent(voteCandidate, voteCandidate, Role.SEER), declaredStatusContent(me, Role.FOX, Status.DEAD));
+					estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF));
+					voteReasonMap.put(me, voteCandidate, reason);
+				}
+				// それ以外
+				else {
+					Content reason = andContent(me, declaredContent(me, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+					voteReasonMap.put(me, voteCandidate, reason);
+				}
+			}
 			return;
 		}
-		// 人狼COしたプレイヤーがいる場合
+		// 2.人狼COしたプレイヤーがいる場合
 		List<Agent> werewolfCOList = new ArrayList<>();
 		for(Agent a : currentGameInfo.getAliveAgentList()) {
 			if(NotVillagerSideCOMap.get(a) == Role.WEREWOLF) {
@@ -467,9 +502,14 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 		if(werewolfCOList.size() > 0) {
 			voteCandidate = randomSelect(werewolfCOList);
+			// 発言生成「妖狐が確定で死亡していて人狼COしているAgentがいるのでそのAgentに投票します」
+			if(isTalk && arrange.getTotalState(self).get("max-a-Rf") == 0) {
+				Content reason = andContent(me, coContent(voteCandidate, voteCandidate, Role.WEREWOLF), declaredStatusContent(me, Role.FOX, Status.DEAD));
+				voteReasonMap.put(me, voteCandidate, reason);
+			}
 			return;
 		}
-		// 確定人外がいる場合
+		// 3.確定人外がいる場合
 		if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
 			for(Agent Swf : arrange.getDisitionSwfList(self)) {
 				wolfCandidates.add(Swf);
@@ -477,12 +517,12 @@ public final class SampleSeer extends SampleBasePlayer {
 			voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
 			return;
 		}
-		// 人外候補がいる場合
+		// 4.人外候補がいる場合
 		if(toAliveList(SwfCandidates).size() > 0) {
 			voteCandidate = randomSelect(toAliveList(SwfCandidates));
 			return;
 		}
-		// それ以外の場合は確白を除いたプレイヤーからランダム
+		// 5.それ以外の場合は確白を除いたプレイヤーからランダム
 		voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(self).contains(a)).collect(Collectors.toList()));
 		return;
 	}

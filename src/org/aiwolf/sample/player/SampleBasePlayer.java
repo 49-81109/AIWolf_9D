@@ -625,6 +625,31 @@ public class SampleBasePlayer implements Player {
 		return Swf;
 	}
 	
+	/** 占い師CO者[seer]の占い結果が[species]のAgentのリスト<br>speciesがANYなら占い先すべてを返す, 非占い師CO者の場合空のリストが返される */
+	List<Agent> getDivinedResultList(Agent seer, Species species) {
+		List<Agent> divineList = new ArrayList<>();
+		for(Judge j : divinationList) {
+			if(j.getAgent() == seer) {
+				if(species == Species.ANY) {
+					divineList.add(j.getTarget());
+				}
+				else {
+					if(species == Species.HUMAN) {
+						if(j.getResult() == Species.HUMAN) {
+							divineList.add(j.getTarget());
+						}
+					}
+					else {
+						if(j.getResult() == Species.WEREWOLF) {
+							divineList.add(j.getTarget());
+						}
+					}
+				}
+			}
+		}
+		return divineList;
+	}
+	
 	/**
 	 * 投票先候補を選びvoteCandidateにセットする
 	 * 
