@@ -936,6 +936,15 @@ public class SampleBasePlayer implements Player {
 		return list.stream().filter(a -> currentGameInfo.getAliveAgentList().contains(a)).collect(Collectors.toList());
 	}
 	
+	/** Agentリストのシャローコピー */
+	public List<Agent> copyAgentList(List<Agent> list) {
+		List<Agent> cp = new ArrayList<>();
+		for(Agent a : list) {
+			cp.add(a);
+		}
+		return cp;
+	}
+	
 	static Content replaceSubject(Content content, Agent newSubject) {
 		if (content.getTopic() == Topic.SKIP || content.getTopic() == Topic.OVER) {
 			return content;
