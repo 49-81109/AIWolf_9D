@@ -143,12 +143,16 @@ public final class SampleSeer extends SampleBasePlayer {
 						if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 							List<Content> notVote = new ArrayList<>();
 							List<Content> foxCand = new ArrayList<>();
+							List<Content> divina = new ArrayList<>(); 
 							for(Agent c : foxCandidates) {
 								notVote.add(notContent(me, votedContent(he, c)));
 								foxCand.add(estimateContent(me, c, Role.FOX));
+								divina.add(divinationContent(me, c));
+								zone.add(c);
 							}
 							Content notVoteReason = andContent(me, declaredContent(me, he, Role.IMMORALIST), andContent(me, notVote));
 							enqueue1Talk(becauseContent(me, notVoteReason, orContent(me, foxCand)));
+							enqueue1Talk(dayContent(me, day + 1, orContent(me, divina)));
 						}
 					}
 					else if(blackList.size() > 0) {
@@ -163,12 +167,16 @@ public final class SampleSeer extends SampleBasePlayer {
 							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 								List<Content> notVote = new ArrayList<>();
 								List<Content> foxCand = new ArrayList<>();
+								List<Content> divina = new ArrayList<>(); 
 								for(Agent c : foxCandidates) {
 									notVote.add(notContent(me, votedContent(he, c)));
 									foxCand.add(estimateContent(me, c, Role.FOX));
+									divina.add(divinationContent(me, c));
+									zone.add(c);
 								}
 								Content notVoteReason = andContent(me, notVote);
 								enqueue1Talk(ifContent(me, estimateContent(me, he, Role.IMMORALIST), becauseContent(me, notVoteReason, orContent(me, foxCand))));
+								enqueue1Talk(dayContent(me, day + 1, orContent(me, divina)));
 							}
 						}
 						else {
