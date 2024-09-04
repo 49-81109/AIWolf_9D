@@ -514,10 +514,25 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			ArrangeToolLink arrange = getArrangeLink();
 			// 全視点での整理
 			String[][] every = getBoardArrange(arrange);
+			// 自分が人狼視点での整理
+			String[][] self = getSelfBoardArrange(arrange, false);
 			
 			// 妖狐確定死亡盤面では確白には投票をしない
 			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
 				List<Agent> candidates = aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
+				if (!candidates.isEmpty()) {
+					voteCandidate = randomSelect(candidates);
+					return;
+				}
+			}
+			
+			// 4人盤面では妖狐確定位置がいたらそこに投票、それ以外の場合妖狐が否定されてないプレイヤーから投票
+			if(currentGameInfo.getAliveAgentList().size() == 4) {
+				if(foxCandidates.size() > 0) {
+					voteCandidate = randomSelect(foxCandidates);
+					return;
+				}
+				List<Agent> candidates = aliveOthers.stream().filter(a -> arrange.agentCandidate(self, Role.FOX).contains(a)).collect(Collectors.toList());
 				if (!candidates.isEmpty()) {
 					voteCandidate = randomSelect(candidates);
 					return;
