@@ -138,7 +138,7 @@ public final class SampleSeer extends SampleBasePlayer {
 						enqueue1Talk(becauseContent(me, reason, declaredContent(me, he, Role.IMMORALIST)));
 						voteReasonMap.put(me, he, declaredContent(me, he, Role.IMMORALIST));
 						// 背徳者基軸からの妖狐位置推定
-						List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a) && a != he).collect(Collectors.toList());
+						List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a) && a != he && !blackList.contains(a)).collect(Collectors.toList());
 						if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 							List<Content> notVote = new ArrayList<>();
 							List<Content> foxCand = new ArrayList<>();
@@ -158,7 +158,7 @@ public final class SampleSeer extends SampleBasePlayer {
 							voteReasonMap.put(me, he, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST)));
 							
 							enqueue1Talk(becauseContent(me, reason, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
-							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a) && a != he).collect(Collectors.toList());
+							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a) && a != he && !blackList.contains(a)).collect(Collectors.toList());
 							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 								List<Content> notVote = new ArrayList<>();
 								List<Content> foxCand = new ArrayList<>();
