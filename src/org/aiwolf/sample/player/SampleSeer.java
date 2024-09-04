@@ -155,9 +155,9 @@ public final class SampleSeer extends SampleBasePlayer {
 						if(blackList.get(0) != he) {
 							reason = andContent(me, iAm, heIs, divinedContent(me, blackList.get(0), Species.WEREWOLF));
 							estimateReasonMap.put(new Estimate(me, he, reason, Role.FOX, Role.IMMORALIST));
-							voteReasonMap.put(me, he, andContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST)));
+							voteReasonMap.put(me, he, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST)));
 							
-							enqueue1Talk(becauseContent(me, reason, andContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
+							enqueue1Talk(becauseContent(me, reason, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
 							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !whiteList.contains(a)).collect(Collectors.toList());
 							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
 								List<Content> notVote = new ArrayList<>();
