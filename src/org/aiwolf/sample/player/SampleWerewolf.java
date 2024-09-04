@@ -700,7 +700,9 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			}
 		}
 		
-		
+		if(attackVoteCandidate == null) {
+			attackVoteCandidate = randomSelect(aliveOthers);
+		}
 		/*
 		// カミングアウトした村人陣営は襲撃先候補
 		List<Agent> candidates = villagers.stream().filter(a -> isCo(a)).collect(Collectors.toList());
