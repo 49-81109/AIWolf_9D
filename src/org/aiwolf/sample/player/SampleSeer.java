@@ -116,7 +116,8 @@ public final class SampleSeer extends SampleBasePlayer {
 	void chooseVoteCandidate() {
 		Content iAm = isCameout ? coContent(me, me, Role.SEER) : coContent(me, me, Role.VILLAGER);
 		
-		if(day == 1 && currentGameInfo.getLastDeadAgentList().size() < 2) {
+		// 犠牲者なしのとき妖狐は確定生存
+		if(day > 0 && currentGameInfo.getLastDeadAgentList().size() == 0) {
 			enqueue1Talk(declaredStatusContent(me, Role.FOX, Status.ALIVE));
 		}
 		voteCandidateWithArrangeTool();
@@ -612,10 +613,14 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 		// 2日目の占い先(dayは1になっている)
 		if(day == 1) {
-			/** 基本方針としては「妖狐を狙う」
+			/** 基本方針としては「妖狐を狙う」 基本は対抗以外から
 			 *  背徳者が2人いるため妖狐は得票されにくいことから得票数が少ない位置を狙う
 			 *  また、妖狐への投票意思を見せたプレイヤーは妖狐や背徳者から非背徳者がほぼ透けるので、妖狐や背徳者からの票が飛びやすい
 			 */
+			// 占い師が3CO以下の場合、基本的に非占い師CO者から占う
+			if(currentGameInfo.getAgentList().stream().filter(a -> getCoRole(a) == Role.SEER).count() < 4) {
+				divineCandidates = divineCandidates.stream().filter(a -> getCoRole(a) != Role.SEER).collect(Collectors.toList());
+			}			
 			// もし初日の追放者の投票先のAgentがその追放者に投票を入れていた場合、確率P_Executed_CrossVoteでそのAgentを占う
 			Agent executedVoteTar = getVoteTarget(currentGameInfo.getLatestExecutedAgent(), 1);
 			if(getVoteTarget(executedVoteTar, 1) == currentGameInfo.getLatestExecutedAgent() && grayList.contains(executedVoteTar) && randP(P_Executed_CrossVote) && divineCandidates.contains(executedVoteTar)) {
@@ -651,12 +656,6 @@ public final class SampleSeer extends SampleBasePlayer {
 				return randomSelect(candidates);
 			}
 		}
-		/*
-		// 人狼候補がいればそれらからランダムに占う
-		if (!wolfCandidates.isEmpty()) {
-			return randomSelect(wolfCandidates);
-		}
-		//*/
 		// 人狼候補がいない場合，まだ占っていない生存者からランダムに占う
 		List<Agent> candidates = divineCandidates;
 		if (candidates.isEmpty()) {
