@@ -252,6 +252,11 @@ public class SampleBasePlayer implements Player {
 		return aliveSeerCo.size() == speakResultList.size();
 	}
 	
+	/** 占い師CO数 */
+	int getSeerCoNum() {
+		return (int) currentGameInfo.getAgentList().stream().filter(a -> getCoRole(a) == Role.SEER).count();
+	}
+	
 	/**
 	 * リストからランダムに選んで返す
 	 * 
@@ -818,8 +823,8 @@ public class SampleBasePlayer implements Player {
 	public ArrangeToolLink getArrangeLink() {
 		// すでにその日の盤面整理リンクと接続している場合
 		if(currentArrangeToolLink != null) {
-			// 同日に占い師COが後ほどされた場合は新しく盤面整理ツールを起動させる
-			if(!currentArrangeToolLink.isSeerCO() && isCo(Role.SEER)) {
+			// 同日に占い師CO数が変わった場合は新しく盤面整理ツールを起動させる
+			if(currentArrangeToolLink.getSeerCONum() != getSeerCoNum()) {
 				currentArrangeToolLink = new ArrangeToolLink(this);
 				// 占い師CO前のデータは削除
 				totalLink.remove(day);
