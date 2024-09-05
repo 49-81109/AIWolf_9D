@@ -826,6 +826,9 @@ public class SampleBasePlayer implements Player {
 			// 同日に占い師CO数が変わった場合は新しく盤面整理ツールを起動させる
 			if(currentArrangeToolLink.getSeerCONum() != getSeerCoNum()) {
 				currentArrangeToolLink = new ArrangeToolLink(this);
+				currentDataEvery = null;
+				currentDataSelf = null;
+				currentDataCO.clear();
 				// 占い師CO前のデータは削除
 				totalLink.remove(day);
 				// 新しくデータを格納
@@ -839,6 +842,9 @@ public class SampleBasePlayer implements Player {
 		
 		// その日の盤面整理リンクがない場合は新たに作成
 		currentArrangeToolLink = new ArrangeToolLink(this);
+		currentDataEvery = null;
+		currentDataSelf = null;
+		currentDataCO.clear();
 		getTotalBoardArrange();
 		// その日でのデータを格納
 		totalLink.put(day, currentArrangeToolLink);
@@ -863,7 +869,7 @@ public class SampleBasePlayer implements Player {
 	
 	/** 村視点の整理実行 */
 	public String[][] getBoardArrange(ArrangeToolLink arrange) {
-		if(currentDataEvery != null && currentArrangeToolLink == arrange) {
+		if(currentDataEvery != null) {
 			return currentDataEvery;
 		}
 		String[][] data = arrange.copyData(arrange.executeArrangement());
@@ -873,7 +879,7 @@ public class SampleBasePlayer implements Player {
 	
 	/** 真視点の整理実行 */
 	public String[][] getSelfBoardArrange(ArrangeToolLink arrange, boolean isPrint) {
-		if(currentDataSelf != null && currentArrangeToolLink == arrange) {
+		if(currentDataSelf != null) {
 			return currentDataSelf;
 		}
 		String[][] data = arrange.copyData(arrange.executeArrangement(me, myRole));
