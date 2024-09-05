@@ -45,32 +45,29 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	/** カミングアウト済みか */
 	private boolean isCameout;
 	
-	/** 偽判定リスト (潜伏時は占い対象だけ決めておく、COして結果公開するときに白か黒かを考える) */
+	/** 偽判定リスト[占い師騙りのみ使用] (潜伏時は占い対象だけ決めておく、COして結果公開するときに白か黒かを考える) */
 	private List<Agent> myFakeDivineTargetList = new ArrayList<>();
 
-	/** 未公表偽判定の待ち行列 */
+	/** 未公表偽判定の待ち行列[占い師騙りのみ使用] */
 	private Deque<Agent> myFakeDivineTargetQueue = new LinkedList<>();
 	
-	/** 未公表偽判定の日にちの待ち行列 */
+	/** 未公表偽判定の日にちの待ち行列[占い師騙りのみ使用] */
 	private Deque<Integer> myFakeDivinedDayQueue = new LinkedList<>();
 
-	/** 偽白のリスト */
+	/** 偽白のリスト[占い師騙りのみ使用] */
 	private List<Agent> fakeWhiteList = new ArrayList<>();
 
-	/** 偽黒のリスト */
+	/** 偽黒のリスト[占い師騙りのみ使用] */
 	private List<Agent> fakeBlackList = new ArrayList<>();
 	
 	
 	/** 非背徳者の候補リスト(背徳者の可能性が非常に低いAgent, 妖狐は除く) */
 	private List<Agent> notImmoralistCandidates = new ArrayList<>();
 	
-	/** 自身の騙る村人陣営の役職視点での投票候補リスト */
-	private List<Agent> voteCandidatesPretend = new ArrayList<>();
+	/** 背徳者視点で優先的に吊りたい候補リスト(最初に入っているほうがより吊りたい候補) */
+	private List<Agent> wantExeScale = new ArrayList<>();
 	
-	/** 背徳者視点で優先的に吊りたい候補リスト */
-	private List<Agent> voteCandidatesRi = new ArrayList<>();
-	
-	/** 背徳者視点でできるだけ投票を避けたいAgentリスト */
+	/** 背徳者視点でできるだけ投票を避けたいAgentリスト(現在は使用してない) */
 	private List<Agent> voteNotCandidatesRi = new ArrayList<>();
 	
 	/** 非背徳者候補に投票をする確率 */
@@ -78,6 +75,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	
 	/** 占い師を騙る確率 */
 	private static final int P_PretendSeer = 35;
+	
+	/** 背徳者視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
+	private static final int P_PrioScale = 77;
 	
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
@@ -113,8 +113,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	@Override
 	public void dayStart() {
 		super.dayStart();
-		voteCandidatesPretend.clear();
-		voteCandidatesRi.clear();
+		wantExeScale.clear();
 		voteNotCandidatesRi.clear();
 		if(day > 0) {
 			Agent divineTarget = chooseDivineTarget();
@@ -163,7 +162,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			// 盤面整理ツールに連携
 			ArrangeToolLink arrange = getArrangeLink();
 			// 全視点での整理
-			String[][] every = getBoardArrange(arrange);
+			//String[][] every = getBoardArrange(arrange);
 			// 自分が背徳者視点での整理
 			//String[][] self = getSelfBoardArrange(arrange, false);
 			// 自身が主張する村人陣営役職視点での整理
@@ -305,7 +304,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			// 見つかった場合
 			if (!wolfCandidates.contains(voteCandidate)) {
 				// 新しい投票先の場合，推測発言をする
-				voteCandidate = randomSelect(wolfCandidates);
+				voteCandidate = selectVote(wolfCandidates);
 				Estimate estimate = estimateReasonMap.getEstimate(me, voteCandidate);
 				if (estimate != null) {
 					enqueueTalk(estimate.toContent());
@@ -321,10 +320,10 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
 				List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 				if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(aliveEnemies2);
+					voteCandidate = selectVote(aliveEnemies2);
 				}
 				else {
-					voteCandidate = randomSelect(aliveEnemies);
+					voteCandidate = selectVote(aliveEnemies);
 				}
 			}
 		}
@@ -353,10 +352,10 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			// 人狼候補が見つけられなかった場合，初回投票では投票リクエストに応じる
 			if (wolfCandidates.isEmpty()) {
 				List<Agent> voteReqEnemies = voteRequestCounter.getRequestMap().values().stream().filter(a -> a != me && !foxes.contains(a)).collect(Collectors.toList());
-				voteCandidate = randomSelect(voteReqEnemies);
+				voteCandidate = selectVote(voteReqEnemies);
 				List<Agent> voteReqEnemies2 = voteRequestCounter.getRequestMap().values().stream().filter(a -> a != me && !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 				if(voteReqEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(voteReqEnemies2);
+					voteCandidate = selectVote(voteReqEnemies2);
 				}
 				if (voteCandidate == null || !isAlive(voteCandidate)) {
 					List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
@@ -367,10 +366,10 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 					// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
 					List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 					if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-						voteCandidate = randomSelect(aliveEnemies2);
+						voteCandidate = selectVote(aliveEnemies2);
 					}
 					else {
-						voteCandidate = randomSelect(aliveEnemies);
+						voteCandidate = selectVote(aliveEnemies);
 					}
 				}
 			}
@@ -391,10 +390,10 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
 				List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 				if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(aliveEnemies2);
+					voteCandidate = selectVote(aliveEnemies2);
 				}
 				else {
-					voteCandidate = randomSelect(aliveEnemies);
+					voteCandidate = selectVote(aliveEnemies);
 				}
 			} else {
 				voteCandidate = candidates.get(0);
@@ -408,11 +407,14 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		// 全視点での整理
 		String[][] every = getBoardArrange(arrange);
 		// 背徳者視点での整理
-		//String[][] self = getSelfBoardArrange(arrange, false);
+		String[][] self = getSelfBoardArrange(arrange, false);
 		// 自身が主張する村人陣営役職視点での整理
 		String[][] pretend = getCOBoardArrange(arrange, me, false);
 		// 人外候補リストの更新
 		SwfCandidates = addNonVillagerSideCandidates(arrange, pretend, SwfCandidates);
+		
+		// 背徳者視点で吊りたい位置のスケールの更新
+		wantExecuteForRi(arrange, every, self);
 		
 		// 自視点が破綻していた場合はこの関数を使わない
 		if(arrange.isBankruptcy(pretend)) {
@@ -494,6 +496,60 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		return false;
 	}
 	
+	/** 背徳者視点で吊りたい位置 */
+	private void wantExecuteForRi(ArrangeToolLink arrange, String[][] every, String[][] self) {
+		wantExeScale.clear();
+		// 1.背徳者視点での確定人狼
+		if(toAliveList(arrange.getDisitionRwList(self)).size() > 0) {
+			wantExeScale.add(toAliveList(arrange.getDisitionRwList(self)).get(0));
+		}
+		// 2.背徳者視点での確定占い師
+		if(toAliveList(arrange.agentDisition(self, Role.SEER)).size() > 0) {
+			wantExeScale.add(toAliveList(arrange.agentDisition(self, Role.SEER)).get(0));
+		}
+		// 3.背徳者視点で偽が確定していない占い師のうち、次に妖狐を占ってきそうな占い師CO者(ゾーンはとりあえず除く、あからさまになりやすいので)
+		   // 具体的には占い師視点でのグレー位置が1つの場合
+		List<Agent> villagerCo = currentGameInfo.getAliveAgentList().stream().filter(a -> getCoRole(a) != Role.SEER).collect(Collectors.toList());
+		for(Agent seer : arrange.agentCandidate(self, Role.SEER)) {
+			List<Agent> divined = getDivinedResultList(seer, Species.ANY);
+			List<Agent> gray = villagerCo.stream().filter(a -> !divined.contains(a)).collect(Collectors.toList());
+			if(gray.size() < 2 && !wantExeScale.contains(seer)) {
+				wantExeScale.add(seer);
+			}
+		}
+		// 4.自身が占い師COしていて背徳者視点で偽が確定していない占い師のうち自身への白結果を持っている占い師CO者(ラインから妖狐推定→占いされるリスク)
+		if(getCoRole(me) == Role.SEER) {
+			List<Judge> forMeDivine = divinationList.stream().filter(j -> arrange.agentCandidate(self, Role.SEER).contains(j.getAgent())).collect(Collectors.toList());
+			forMeDivine = forMeDivine.stream().filter(j -> isAlive(j.getAgent()) && j.getTarget() == me).collect(Collectors.toList());
+			for(Judge j : forMeDivine) {
+				if(!wantExeScale.contains(j.getAgent())) {
+					wantExeScale.add(j.getAgent());
+				}
+			}
+		}
+		// 5.妖狐に対して吊りたいと発言、または妖狐に投票したことのあるプレイヤー(非背徳者目)
+		for(Agent a : notImmoralistCandidates) {
+			if(!wantExeScale.contains(a)) {
+				wantExeScale.add(a);
+			}
+		}
+		// 6.背徳者視点で偽が確定していない占い師の黒先
+		List<Judge> forDivine = divinationList.stream().filter(j -> arrange.agentCandidate(self, Role.SEER).contains(j.getAgent()) && isAlive(j.getTarget())).collect(Collectors.toList());
+		List<Judge> forBlack = forDivine.stream().filter(j -> j.getResult() == Species.WEREWOLF).collect(Collectors.toList());
+		for(Judge j : forBlack) {
+			if(!wantExeScale.contains(j.getTarget())) {
+				wantExeScale.add(j.getTarget());
+			}
+		}
+		// 7.背徳者視点で偽が確定していない占い師の占われ先
+		forDivine = forDivine.stream().filter(j -> j.getTarget() != me).collect(Collectors.toList());
+		for(Judge j : forDivine) {
+			if(!wantExeScale.contains(j.getTarget())) {
+				wantExeScale.add(j.getTarget());
+			}
+		}
+	}
+	
 	/** 偽装人狼狙いの投票 (投票関数優先度:1) */
 	private void chooseVoteToWolf(ArrangeToolLink arrange, String[][] every, String[][] pretend, boolean isTalk) {
 		// 1.確定人狼がいる場合
@@ -502,7 +558,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				wolfCandidates.add(wolf);
 			}
 			if(excludeFoxList(arrange.getDisitionRwList(pretend)).size() > 0) {
-				voteCandidate = randomSelect(excludeFoxList(arrange.getDisitionRwList(pretend)));
+				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionRwList(pretend)));
 				// 残り1縄での発言生成「人狼が確定しているAgentがいるのでそのAgentに投票します」
 				if(isTalk && getCoRole(me) == Role.SEER) {
 					// 自身の黒先の場合
@@ -581,7 +637,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			}
 		}
 		if(werewolfCOList.size() > 0) {
-			voteCandidate = randomSelect(werewolfCOList);
+			voteCandidate = selectVote(werewolfCOList);
 			// 発言生成「人狼COしているAgentがいるのでそのAgentに投票します」
 			if(isTalk) {
 				Content reason = andContent(me, coContent(voteCandidate, voteCandidate, Role.WEREWOLF));
@@ -595,17 +651,17 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				wolfCandidates.add(Swf);
 			}
 			if(excludeFoxList(arrange.getDisitionSwfList(pretend)).size() > 0) {
-				voteCandidate = randomSelect(excludeFoxList(arrange.getDisitionSwfList(pretend)));
+				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionSwfList(pretend)));
 				return;
 			}
 		}
 		// 4.妖狐を除いた人外候補がいる場合
 		if(excludeFoxList(toAliveList(SwfCandidates)).size() > 0) {
-			voteCandidate = randomSelect(excludeFoxList(toAliveList(SwfCandidates)));
+			voteCandidate = selectVote(excludeFoxList(toAliveList(SwfCandidates)));
 			return;
 		}
 		// 5.それ以外の場合は妖狐と確定村人陣営を除いたプレイヤーからランダム
-		voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
+		voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
 		return;
 	}
 	
@@ -617,7 +673,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				wolfCandidates.add(Swf);
 			}
 			if(excludeFoxList(arrange.getDisitionSwfList(pretend)).size() > 0) {
-				voteCandidate = randomSelect(excludeFoxList(arrange.getDisitionSwfList(pretend)));
+				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionSwfList(pretend)));
 				if(isTalk && getCoRole(me) == Role.VILLAGER) {
 					if(getCoRole(voteCandidate) == Role.SEER) {
 						if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
@@ -652,12 +708,12 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		}
 		// 人外候補がいる場合
 		if(excludeFoxList(toAliveList(SwfCandidates)).size() > 0) {
-			voteCandidate = randomSelect(excludeFoxList(toAliveList(SwfCandidates)));
+			voteCandidate = selectVote(excludeFoxList(toAliveList(SwfCandidates)));
 			return;
 		}
 		List<Agent> voteCandidates = excludeFoxList(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(pretend, Role.FOX).contains(a)).collect(Collectors.toList()));
 		if(voteCandidates.size() > 0) {
-			voteCandidate = randomSelect(voteCandidates);
+			voteCandidate = selectVote(voteCandidates);
 			return;
 		}
 	}
@@ -682,13 +738,25 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		if(isCo(Role.SEER) && arrange.agentCandidate(every, Role.SEER).size() > 3) {
 			// 対抗占い師に投票 (白先対抗がいる場合はこの前の関数ですでに投票候補になっている)
 			voteCandidates = voteCandidates.stream().filter(a -> arrange.agentCandidate(every, Role.SEER).contains(a) && a != me).collect(Collectors.toList());
-			voteCandidate = randomSelect(voteCandidates);
+			voteCandidate = selectVote(voteCandidates);
 			return;
 		}
 		// 確定村人陣営を投票候補から外す
 		voteCandidates = voteCandidates.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a)).collect(Collectors.toList());
-		voteCandidate = randomSelect(voteCandidates);
+		voteCandidate = selectVote(voteCandidates);
 		return;
+	}
+	
+	/** 投票候補から背徳者視点で吊りたい位置を優先して選択する */
+	private Agent selectVote(List<Agent> voteCandidates) {
+		if(wantExeScale.size() > 0) {
+			for(Agent vote : wantExeScale) {
+				if(voteCandidates.contains(vote) && randP(P_PrioScale)) {
+					return vote;
+				}
+			}
+		}
+		return randomSelect(voteCandidates);
 	}
 	
 	@Override
@@ -697,7 +765,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		isRevote = true;
 		if(foxes.contains(voteCandidate)) {
 			List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a)).collect(Collectors.toList());
-			voteCandidate = randomSelect(aliveEnemies);
+			voteCandidate = selectVote(aliveEnemies);
 		}
 		return voteCandidate;
 	}
