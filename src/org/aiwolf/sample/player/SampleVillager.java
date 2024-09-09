@@ -32,6 +32,9 @@ public final class SampleVillager extends SampleBasePlayer {
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
 	
+	/** 再投票のときに投票を変える確率 */
+	private static final int P_RevoteToChange = 21;
+	
 	public void initialize(GameInfo gameInfo, GameSetting gameSetting) {
 		super.initialize(gameInfo, gameSetting);
 		myRole = Role.VILLAGER;
@@ -41,6 +44,11 @@ public final class SampleVillager extends SampleBasePlayer {
 	@Override
 	void chooseVoteCandidate() {
 		wolfCandidates.clear();
+		
+		// 犠牲者なしのとき妖狐は確定生存
+		if(day > 0 && currentGameInfo.getLastDeadAgentList().size() == 0) {
+			enqueue1Talk(declaredStatusContent(me, Role.FOX, Status.ALIVE));
+		}
 		
 		if(isAllSeerTalkResult() && !(!isCo(Role.SEER) && currentGameInfo.getLastDeadAgentList().size() > 1)) {
 			// 盤面整理ツールに連携
@@ -139,16 +147,21 @@ public final class SampleVillager extends SampleBasePlayer {
 			}
 		} else {
 			// 再投票の場合は自分以外の前回最多得票に入れる
-			VoteReasonMap vrmap = new VoteReasonMap();
-			for (Vote v : currentGameInfo.getLatestVoteList()) {
-				vrmap.put(v.getAgent(), v.getTarget(), null);
-			}
-			List<Agent> candidates = vrmap.getOrderedList();
-			candidates.remove(me);
-			if (candidates.isEmpty()) {
-				voteCandidate = randomSelect(aliveOthers);
-			} else {
-				voteCandidate = candidates.get(0);
+			if(randP(P_RevoteToChange)) {
+				if(chooseVoteWithArrangeTool(false)) {
+					return;
+				}
+				VoteReasonMap vrmap = new VoteReasonMap();
+				for (Vote v : currentGameInfo.getLatestVoteList()) {
+					vrmap.put(v.getAgent(), v.getTarget(), null);
+				}
+				List<Agent> candidates = vrmap.getOrderedList();
+				candidates.remove(me);
+				if (candidates.isEmpty()) {
+					voteCandidate = randomSelect(aliveOthers);
+				} else {
+					voteCandidate = candidates.get(0);
+				}
 			}
 		}
 	}

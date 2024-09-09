@@ -77,6 +77,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	/** 背徳者視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
 	private static final int P_PrioScale = 77;
 	
+	/** 再投票のときに投票を変える確率 */
+	private static final int P_RevoteToChange = 21;
+	
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
 	
@@ -373,28 +376,33 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			}
 		} else {
 			// 再投票の場合は自分と妖狐以外の前回最多得票に入れる
-			VoteReasonMap vrmap = new VoteReasonMap();
-			for (Vote v : currentGameInfo.getLatestVoteList()) {
-				vrmap.put(v.getAgent(), v.getTarget(), null);
-			}
-			List<Agent> candidates = vrmap.getOrderedList();
-			candidates.remove(me);
-			for(Agent fox : foxes) {
-				candidates.remove(fox);
-			}
-			
-			if (candidates.isEmpty()) {
-				List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
-				// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
-				List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
-				if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = selectVote(aliveEnemies2);
+			if(randP(P_RevoteToChange)) {
+				if(chooseVoteWithArrangeTool(false)) {
+					return;
 				}
-				else {
-					voteCandidate = selectVote(aliveEnemies);
+				VoteReasonMap vrmap = new VoteReasonMap();
+				for (Vote v : currentGameInfo.getLatestVoteList()) {
+					vrmap.put(v.getAgent(), v.getTarget(), null);
 				}
-			} else {
-				voteCandidate = candidates.get(0);
+				List<Agent> candidates = vrmap.getOrderedList();
+				candidates.remove(me);
+				for(Agent fox : foxes) {
+					candidates.remove(fox);
+				}
+				
+				if (candidates.isEmpty()) {
+					List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
+					// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
+					List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
+					if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
+						voteCandidate = selectVote(aliveEnemies2);
+					}
+					else {
+						voteCandidate = selectVote(aliveEnemies);
+					}
+				} else {
+					voteCandidate = candidates.get(0);
+				}
 			}
 		}
 	}
@@ -772,6 +780,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a)).collect(Collectors.toList());
 			voteCandidate = selectVote(aliveEnemies);
 		}
+//		System.out.println(me.getName() + "----" + voteCandidate.getName());
 		return voteCandidate;
 	}
 	
@@ -830,7 +839,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 					enqueueTalk(coContent(me, me, fakeRole));
 				}
 			}
-			// カミングアウトしたらこれまでの偽判定結果をすべて公開 (今のところ白結果しか出さない)
+			// カミングアウトしたらこれまでの偽判定結果をすべて公開
 			else {
 				List<Content> judges = new ArrayList<>();
 				while (!myFakeDivineTargetQueue.isEmpty()) {

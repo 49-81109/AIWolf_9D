@@ -112,6 +112,9 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	
 	/** 占い師が2CO以上で、占い師が残り1人しか生存してない場合に残された占い師を襲撃する確率 */
 	private static final int P_AttackLeftSeer_FoxPosAlive = 49;
+	
+	/** 再投票のときに投票を変える確率 */
+	private static final int P_RevoteToChange = 21;
 
 	@Override
 	public void initialize(GameInfo gameInfo, GameSetting gameSetting) {
@@ -562,16 +565,18 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			}
 		} else {
 			// 再投票の場合は自分以外の前回最多得票に入れる
-			VoteReasonMap vrmap = new VoteReasonMap();
-			for (Vote v : currentGameInfo.getLatestVoteList()) {
-				vrmap.put(v.getAgent(), v.getTarget(), null);
-			}
-			List<Agent> candidates = vrmap.getOrderedList();
-			candidates.remove(me);
-			if (candidates.isEmpty()) {
-				voteCandidate = randomSelect(aliveOthers);
-			} else {
-				voteCandidate = candidates.get(0);
+			if(randP(P_RevoteToChange)) {
+				VoteReasonMap vrmap = new VoteReasonMap();
+				for (Vote v : currentGameInfo.getLatestVoteList()) {
+					vrmap.put(v.getAgent(), v.getTarget(), null);
+				}
+				List<Agent> candidates = vrmap.getOrderedList();
+				candidates.remove(me);
+				if (candidates.isEmpty()) {
+					voteCandidate = randomSelect(aliveOthers);
+				} else {
+					voteCandidate = candidates.get(0);
+				}
 			}
 		}
 	}
