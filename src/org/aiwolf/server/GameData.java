@@ -69,6 +69,8 @@ public class GameData {
 	 */
 	protected List<Vote> voteList;
 
+	protected Map<Integer, List<Vote>> revoteList;
+	
 	/**
 	 * <div lang="ja">直近の投票リスト</div>
 	 *
@@ -183,6 +185,7 @@ public class GameData {
 		talkList = new ArrayList<>();
 		whisperList = new ArrayList<>();
 		voteList = new ArrayList<>();
+		revoteList = new HashMap<>();
 		latestVoteList = new ArrayList<>();
 		attackVoteList = new ArrayList<>();
 		latestAttackVoteList = new ArrayList<>();
@@ -573,6 +576,14 @@ public class GameData {
 	public void addVote(Vote vote) {
 		voteList.add(vote);
 	}
+	
+	public void addRevote(Integer i) {
+		List<Vote> votes = new ArrayList<>();
+		for(Vote v : voteList) {
+			votes.add(v);
+		}
+		revoteList.put(i, votes);
+	}
 
 	/**
 	 * Add divine
@@ -595,6 +606,10 @@ public class GameData {
 		return voteList;
 	}
 
+	public Map<Integer, List<Vote>> getRevoteList() {
+		return revoteList;
+	}
+	
 	/**
 	 * set executed
 	 *
