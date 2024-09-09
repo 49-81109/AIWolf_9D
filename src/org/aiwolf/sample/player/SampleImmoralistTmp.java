@@ -375,9 +375,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				}
 			}
 		} else {
-			// 再投票の場合は自分と妖狐以外の前回最多得票に入れる
-			if(randP(P_RevoteToChange)) {
-				if(chooseVoteWithArrangeTool(false)) {
+			// 再投票の場合は5人盤面以下なら自分と妖狐以外の前回最多得票に入れる
+			if(randP(P_RevoteToChange) || currentGameInfo.getAliveAgentList().size() < 6) {
+				if(chooseVoteWithArrangeTool(false) && currentGameInfo.getAliveAgentList().size() > 5) {
 					return;
 				}
 				VoteReasonMap vrmap = new VoteReasonMap();
