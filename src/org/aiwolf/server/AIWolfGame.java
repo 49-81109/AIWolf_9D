@@ -369,31 +369,44 @@ public class AIWolfGame {
 				//System.out.println(c);
 				System.out.printf("Day%02d %02d[%03d]\t[%d]%s\t%s\n", talk.getDay(), talk.getTurn(), talk.getIdx(), talk.getAgent().getAgentIdx(), getAgentName(talk.getAgent()), context);
 			}
-			System.out.println("========Whisper========");
+/*			System.out.println("========Whisper========");
 			for(Talk whisper:yesterday.getWhisperList()){
 				//System.out.println(whisper);
 				System.out.printf("Day%02d %02d[%03d]\t%d, %s\t%s\n", whisper.getDay(), whisper.getTurn(), whisper.getIdx(), whisper.getAgent().getAgentIdx(), getAgentName(whisper.getAgent()), whisper.getText());
 			}
-
-			System.out.println("========Actions========");
+//*/
+			if(yesterday.getDay() > 0) {
+				System.out.println("========Vote========");
+			}
 			Map<Agent, Integer> votedNum = new HashMap<>();
-			// 得票数の初期化
-			for(Agent a : gameData.getAgentList()) {
-				votedNum.put(a, 0);
+			
+			
+			for (int i = 0; i <= gameSetting.getMaxRevote(); i++) {
+				if(yesterday.getRevoteList().containsKey(i)) {
+					if(i > 0) {
+						System.out.println("-------Revote-------");
+					}
+					// 得票数の初期化
+					for(Agent a : gameData.getAgentList()) {
+						votedNum.put(a, 0);
+					}
+					for(Vote vote:yesterday.getRevoteList().get(i)){
+						int addNum = votedNum.get(vote.getTarget());
+						votedNum.remove(vote.getTarget());
+						votedNum.put(vote.getTarget(), addNum + 1);
+					}
+					for(Vote vote:yesterday.getRevoteList().get(i)){
+						System.out.printf("Vote:[%d]%s (%d voted) -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), votedNum.get(vote.getAgent()), vote.getTarget().getAgentIdx(), getAgentName(vote.getTarget()));
+						//System.out.printf("Vote:[%d]%s (%d voted) -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), votedNum.get(vote.getAgent()), vote.getTarget().getAgentIdx(), vote.getTarget().getName());
+					}
+				}
 			}
-			for(Vote vote:yesterday.getVoteList()){
-				int addNum = votedNum.get(vote.getTarget());
-				votedNum.remove(vote.getTarget());
-				votedNum.put(vote.getTarget(), addNum + 1);
-			}
-			for(Vote vote:yesterday.getVoteList()){
-				System.out.printf("Vote:[%d]%s (%d voted) -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), votedNum.get(vote.getAgent()), vote.getTarget().getAgentIdx(), getAgentName(vote.getTarget()));
-				//System.out.printf("Vote:[%d]%s (%d voted) -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), votedNum.get(vote.getAgent()), vote.getTarget().getAgentIdx(), vote.getTarget().getName());
-			}
-
 
 
 			Judge divine = yesterday.getDivine();
+			if(yesterday.getDay() > 0) {
+				System.out.println("========Execute========");
+			}
 			if(yesterday.getExecuted() != null) {
 				System.out.printf("[%d]%s executed\n", yesterday.getExecuted().getAgentIdx(), getAgentName(yesterday.getExecuted()));
 			}
@@ -402,33 +415,61 @@ public class AIWolfGame {
 					System.out.printf("[%d]%s suicided after the death of fox ( [%d]%s )\n", a.getAgentIdx(), getAgentName(a), yesterday.getExecuted().getAgentIdx(), getAgentName(yesterday.getExecuted()));
 				}
 			}
-			if(divine != null){
-				System.out.printf("[%d]%s divine [%d]%s. Result is %s\n", divine.getAgent().getAgentIdx(), getAgentName(divine.getAgent()), divine.getTarget().getAgentIdx(), getAgentName(divine.getTarget()), divine.getResult());
+			boolean isContinue = false;
+			int humanCount = 0;
+			for(Agent agent : gameData.getAgentList()) {
+				if(gameData.getRole(agent) == Role.WEREWOLF && gameData.getStatus(agent) == Status.ALIVE) {
+					isContinue = true;
+				}
+				if((gameData.getRole(agent) == Role.VILLAGER || gameData.getRole(agent) == Role.SEER || gameData.getRole(agent) == Role.IMMORALIST) && gameData.getStatus(agent) == Status.ALIVE) {
+					humanCount++;
+				}
 			}
 			
-//			System.out.println("Attack Vote Result");
-			for(Vote vote:yesterday.getAttackVoteList()){
-				System.out.printf("AttackVote:[%d]%s -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), vote.getTarget().getAgentIdx(), getAgentName(vote.getTarget()));
-			}
-			
-			Guard guard = yesterday.getGuard();
-			if(guard != null){
-				System.out.printf("%s guarded\n", guard);
-			}
+			if(isContinue && humanCount > 1) {
+				System.out.println("========Actions========");
+				if(divine != null){
+					System.out.printf("[%d]%s divine [%d]%s. Result is %s\n", divine.getAgent().getAgentIdx(), getAgentName(divine.getAgent()), divine.getTarget().getAgentIdx(), getAgentName(divine.getTarget()), divine.getResult());
+				}
+				
+//				System.out.println("Attack Vote Result");
+				for(Vote vote:yesterday.getAttackVoteList()){
+					System.out.printf("AttackVote:[%d]%s -> [%d]%s\n", vote.getAgent().getAgentIdx(), getAgentName(vote.getAgent()), vote.getTarget().getAgentIdx(), getAgentName(vote.getTarget()));
+				}
+				
+				Guard guard = yesterday.getGuard();
+				List<Agent> victims = new ArrayList<>();
+				if(guard != null){
+					System.out.printf("%s guarded\n", guard);
+				}
 
-			if (yesterday.getAttackedDead() != null) {
-				System.out.printf("[%d]%s attacked\n", yesterday.getAttackedDead().getAgentIdx(), getAgentName(yesterday.getAttackedDead()));
-			}
+				if (yesterday.getAttackedDead() != null) {
+					System.out.printf("[%d]%s attacked\n", yesterday.getAttackedDead().getAgentIdx(), getAgentName(yesterday.getAttackedDead()));
+					victims.add(yesterday.getAttackedDead());
+				}
 
-			if (yesterday.getCursedFox() != null) {
-				System.out.printf("[%d]%s cursed\n", yesterday.getCursedFox().getAgentIdx(), getAgentName(yesterday.getCursedFox()));
-				if(yesterday.getSuicideImmoralistWithCursedFoxList().size() > 0) {
-					for(Agent a : yesterday.getSuicideImmoralistWithCursedFoxList()) {
-						System.out.printf("[%d]%s suicided after the death of fox ( [%d]%s )\n", a.getAgentIdx(), getAgentName(a), yesterday.getCursedFox().getAgentIdx(), getAgentName(yesterday.getCursedFox()));
+				if (yesterday.getCursedFox() != null) {
+					System.out.printf("[%d]%s cursed\n", yesterday.getCursedFox().getAgentIdx(), getAgentName(yesterday.getCursedFox()));
+					victims.add(yesterday.getCursedFox());
+					if(yesterday.getSuicideImmoralistWithCursedFoxList().size() > 0) {
+						for(Agent a : yesterday.getSuicideImmoralistWithCursedFoxList()) {
+							System.out.printf("[%d]%s suicided after the death of fox ( [%d]%s )\n", a.getAgentIdx(), getAgentName(a), yesterday.getCursedFox().getAgentIdx(), getAgentName(yesterday.getCursedFox()));
+							victims.add(a);
+						}
+					}
+				}
+				System.out.println("========Victims========");
+				if(victims.size() == 0) {
+					System.out.println("No one dead last night");
+				}
+				else {
+					for(Agent v : victims) {
+						System.out.printf("[%d]%s dead last night\n", v.getAgentIdx(), getAgentName(v));
 					}
 				}
 			}
 		}
+		
 		System.out.println("======");
 		List<Agent> agentList = gameData.getAgentList();
 		Collections.sort(agentList, new Comparator<Agent>() {
@@ -509,8 +550,10 @@ public class AIWolfGame {
 		Agent executed = null;
 		List<Agent> candidates = null;
 		if (gameData.getDay() != 0) {
+			gameData.revoteList.clear();
 			for (int i = 0; i <= gameSetting.getMaxRevote(); i++) {
 				vote();
+				gameData.addRevote(i);
 				candidates = getVotedCandidates(gameData.getVoteList());
 				if (candidates.size() == 1) {
 					executed = candidates.get(0);
@@ -566,7 +609,7 @@ public class AIWolfGame {
 
 			// attackVote and attack except day 0
 			Agent attacked = null;
-			if (getAliveWolfList().size() > 0) {
+			if (getAliveWolfList().size() > 0 && !isGameFinished()) {
 				for (int i = 0; i <= gameSetting.getMaxAttackRevote(); i++) {
 					if(i > 0 && gameSetting.isWhisperBeforeRevote()){
 						whisper();
@@ -590,7 +633,9 @@ public class AIWolfGame {
 				// 噛みなし禁止なら襲撃投票のうちランダムで襲撃する
 				if (attacked == null && !gameSetting.isEnableNoAttack()) {
 					Collections.shuffle(candidates, rand);
-					attacked = candidates.get(0);
+					if(candidates.size() > 0) {
+						attacked = candidates.get(0);
+					}
 				}
 
 				gameData.setAttackedTarget(attacked);
