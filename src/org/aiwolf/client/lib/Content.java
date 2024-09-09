@@ -172,6 +172,8 @@ public class Content implements Cloneable {
 	private static final Pattern agreePattern = Pattern.compile(regSubject + "(AGREE|DISAGREE)" + regTalk + TERM);
 	/** 推定パターン */
 	private static final Pattern estimatePattern = Pattern.compile(regSubject + "(ESTIMATE|DECLARED|COMINGOUT)" + regAgent + regRoleResult + TERM);
+	/** 推定パターン */
+	private static final Pattern declaredNotPattern = Pattern.compile(regSubject + "(DECLARED)" + regAgent + SP + "NOT" + regRoleResult + TERM);
 	/** 推定状態パターン */
 	private static final Pattern estimateStatusPattern = Pattern.compile(regSubject + "(ESTIMATE|DECLARED|ESTIMATESTATUS|DECLAREDSTATUS)" + regRoleResult + regRoleResult + TERM);
 	/** 占い霊能結果通知パターン */
@@ -222,6 +224,13 @@ public class Content implements Cloneable {
 			}
 			// ESTIMATE,DECLARED,COMINGOUT
 			else if ((m = estimatePattern.matcher(trimmed)).find()) {
+				subject = toAgent(m.group(1));
+				topic = Topic.valueOf(m.group(2));
+				target = toAgent(m.group(3));
+				role = Role.valueOf(m.group(4));
+			}
+			// DECLAREDNOT
+			else if ((m = declaredNotPattern.matcher(trimmed)).find()) {
 				subject = toAgent(m.group(1));
 				topic = Topic.valueOf(m.group(2));
 				target = toAgent(m.group(3));
@@ -494,6 +503,12 @@ public class Content implements Cloneable {
 					+ " " + (target == ANY ? "ANY" : target.toString())
 					+ " " + role.toString();
 			break;
+		case DECLAREDNOT:
+			text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
+					+ topic.toString().substring(0,8)
+					+ " " + (target == ANY ? "ANY" : target.toString())
+					+ " NOT " + role.toString();
+			break;
 		case ESTIMATESTATUS:
 		case DECLAREDSTATUS:
 			text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
@@ -669,6 +684,12 @@ public class Content implements Cloneable {
 					+ topic.toString()
 					+ " " + (target == ANY ? "ANY" : target.toString())
 					+ " " + role.toString();
+			break;
+		case DECLAREDNOT:
+			text = (subject == UNSPEC ? "" : subject == ANY ? "ANY " : subject.toString() + " ")
+					+ topic.toString().substring(0,8)
+					+ " " + (target == ANY ? "ANY" : target.toString())
+					+ " NOT " + role.toString();
 			break;
 		case ESTIMATESTATUS:
 		case DECLAREDSTATUS:

@@ -23,6 +23,7 @@ import org.aiwolf.client.lib.ComingoutContentBuilder;
 import org.aiwolf.client.lib.Content;
 import org.aiwolf.client.lib.DayContentBuilder;
 import org.aiwolf.client.lib.DeclaredContentBuilder;
+import org.aiwolf.client.lib.DeclaredNotContentBuilder;
 import org.aiwolf.client.lib.DeclaredStatusContentBuilder;
 import org.aiwolf.client.lib.DisagreeContentBuilder;
 import org.aiwolf.client.lib.DivinationContentBuilder;
@@ -1022,6 +1023,11 @@ public class SampleBasePlayer implements Player {
 	/** 断言 ([target]の役職は[role]だ) */
 	static Content declaredContent(Agent subject, Agent target, Role role) {
 		return new Content(new DeclaredContentBuilder(subject, target, role));
+	}
+	
+	/** 否定断言 ([target]の役職は[role]ではない) */
+	static Content declaredNotContent(Agent subject, Agent target, Role role) {
+		return new Content(new DeclaredNotContentBuilder(subject, target, role));
 	}
 
 	/** 状態推定 ([role]は 生存している/死亡している と思う) */
