@@ -6,6 +6,8 @@
 package org.aiwolf.sample.player;
 
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,31 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 	/** 妖狐リスト */
 	private List<Agent> foxes = new ArrayList<>();
 	
+	/** 騙る役職 */
+	private Role fakeRole;
+
+	/** カミングアウトする日 */
+	private int comingoutDay;
+
+	/** カミングアウト済みか */
+	private boolean isCameout;
+	
+	/** 偽判定リスト[占い師騙りのみ使用] (潜伏時は占い対象だけ決めておく、COして結果公開するときに白か黒かを考える) */
+	private List<Agent> myFakeDivineTargetList = new ArrayList<>();
+
+	/** 未公表偽判定の待ち行列[占い師騙りのみ使用] */
+	private Deque<Agent> myFakeDivineTargetQueue = new LinkedList<>();
+	
+	/** 未公表偽判定の日にちの待ち行列[占い師騙りのみ使用] */
+	private Deque<Integer> myFakeDivinedDayQueue = new LinkedList<>();
+
+	/** 偽白のリスト[占い師騙りのみ使用] */
+	private List<Agent> fakeWhiteList = new ArrayList<>();
+
+	/** 偽黒のリスト[占い師騙りのみ使用] */
+	private List<Agent> fakeBlackList = new ArrayList<>();
+	
+	
 	/** 非背徳者の候補リスト(背徳者の可能性が非常に低いAgent) */
 	private List<Agent> notImmoralistCandidates = new ArrayList<>();
 	
@@ -40,6 +67,9 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 	
 	/** 非背徳者候補に投票をする確率 */
 	private static final int P_VoteNotRiCandidate = 63;
+	
+	/** 占い師を騙る確率 */
+	private static final int P_PretendSeer = 3;
 	
 	/** 妖狐視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
 	private static final int P_PrioScale = 77;
@@ -51,9 +81,55 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 		super.initialize(gameInfo, gameSetting);
 		myRole = Role.FOX;
 		foxes = new ArrayList<>(gameInfo.getRoleMap().keySet());
+		// 占い師を騙るかどうか
+		if(randP(P_PretendSeer)) {
+			fakeRole = Role.SEER;
+		}
+		else {
+			fakeRole = Role.VILLAGER;
+		}
+		// 1～3日目からランダムにカミングアウトする
+		comingoutDay = (int) (Math.random() * 3 + 1);
+		isCameout = false;
+		myFakeDivineTargetList.clear();
+		myFakeDivineTargetQueue.clear();
+		myFakeDivinedDayQueue.clear();
+		fakeWhiteList.clear();
+		fakeBlackList.clear();
 		SwfCandidates.clear();
 	}
 
+	@Override
+	public void dayStart() {
+		super.dayStart();
+		wantExeScale.clear();
+		if(day > 0) {
+			Agent divineTarget = chooseDivineTarget();
+			if (fakeRole != Role.VILLAGER) {
+				myFakeDivineTargetList.add(divineTarget);
+				myFakeDivineTargetQueue.offer(divineTarget);
+				myFakeDivinedDayQueue.offer(day);
+			}
+		}
+	}
+	
+	private Agent chooseDivineTarget() {
+		Agent target = null;
+		// 占い師騙りの場合
+		if (fakeRole == Role.SEER) {
+			// 占える対象を選択 (生存者+今日の犠牲者)
+			List<Agent> divinedCandidates = currentGameInfo.getAgentList().stream().filter(a -> aliveOthers.contains(a) || currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
+			List<Agent> candidates = divinedCandidates.stream()
+					.filter(a -> !myFakeDivineTargetList.contains(a) && comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
+			if (candidates.isEmpty()) {
+				target = randomSelect(divinedCandidates);
+			} else {
+				target = randomSelect(candidates);
+			}
+		}
+		return target;
+	}
+	
 	@Override
 	void chooseVoteCandidate() {
 		wolfCandidates.clear();
@@ -106,6 +182,81 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				}
 				chooseVoteWithArrangeTool(true);
 			}
+		}
+		
+		// 占い師騙り視点 [次の説明は自身が占い師仮定した場合の役職]
+		if(getCoRole(me) == Role.SEER) {
+			// 偽占い師は人狼か妖狐か背徳者
+			for (Agent he : aliveOthers) {
+				Content iAm = coContent(me, me, Role.SEER);
+				if (comingoutMap.get(he) == Role.SEER) {
+					wolfCandidates.add(he);
+					// CO後なら推定理由をつける
+					if (isCameout) {
+						Content heIs = coContent(he, he, Role.SEER);
+						Content reason = andContent(me, iAm, heIs);
+						// 生存白先の対抗占いは背徳者確定
+						if(fakeWhiteList.contains(he)) {
+							reason = andContent(me, iAm, heIs, divinedContent(me, he, Species.HUMAN));
+							estimateReasonMap.put(new Estimate(me, he, reason, Role.IMMORALIST));
+							enqueue1Talk(becauseContent(me, reason, declaredContent(me, he, Role.IMMORALIST)));
+							if(!foxes.contains(he)) {
+								voteReasonMap.put(me, he, declaredContent(me, he, Role.IMMORALIST));
+							}
+							// 背徳者基軸からの妖狐位置推定
+							List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !fakeWhiteList.contains(a) && a != he && !fakeBlackList.contains(a)).collect(Collectors.toList());
+							if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
+								List<Content> notVote = new ArrayList<>();
+								List<Content> foxCand = new ArrayList<>();
+								//List<Content> divina = new ArrayList<>(); 
+								for(Agent c : foxCandidates) {
+									notVote.add(notContent(me, votedContent(he, c)));
+									foxCand.add(estimateContent(me, c, Role.FOX));
+									//divina.add(divinationContent(me, c));
+									//zone.add(c);
+								}
+								Content notVoteReason = andContent(me, declaredContent(me, he, Role.IMMORALIST), andContent(me, notVote));
+								enqueue1Talk(becauseContent(me, notVoteReason, orContent(me, foxCand)));
+								//enqueue1Talk(dayContent(me, day + 1, orContent(me, divina)));
+							}
+						}
+						else if(fakeBlackList.size() > 0) {
+							// 対抗占い以外で人狼が見つかっている場合、対抗占いは妖狐か背徳者
+							if(fakeBlackList.get(0) != he) {
+								reason = andContent(me, iAm, heIs, divinedContent(me, fakeBlackList.get(0), Species.WEREWOLF));
+								estimateReasonMap.put(new Estimate(me, he, reason, Role.FOX, Role.IMMORALIST));
+								if(!foxes.contains(he)) {
+									voteReasonMap.put(me, he, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST)));
+								}
+								enqueue1Talk(becauseContent(me, reason, orContent(me, estimateContent(me, he, Role.FOX), estimateContent(me, he, Role.IMMORALIST))));
+								List<Agent> foxCandidates = aliveOthers.stream().filter(a -> !getWantExecuteTarget(he).contains(a) && !fakeWhiteList.contains(a) && a != he && !fakeBlackList.contains(a)).collect(Collectors.toList());
+								if(foxCandidates.size() > 0 && foxCandidates.size() < 4) {
+									List<Content> notVote = new ArrayList<>();
+									List<Content> foxCand = new ArrayList<>();
+									//List<Content> divina = new ArrayList<>(); 
+									for(Agent c : foxCandidates) {
+										notVote.add(notContent(me, votedContent(he, c)));
+										foxCand.add(estimateContent(me, c, Role.FOX));
+										//divina.add(divinationContent(me, c));
+										//zone.add(c);
+									}
+									Content notVoteReason = andContent(me, notVote);
+									enqueue1Talk(ifContent(me, estimateContent(me, he, Role.IMMORALIST), becauseContent(me, notVoteReason, orContent(me, foxCand))));
+									//enqueue1Talk(dayContent(me, day + 1, orContent(me, divina)));
+								}
+							}
+							else {
+								estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF));
+							}
+						}
+						else {
+							estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));		
+						}
+
+					}
+				}
+			}
+
 		}
 		
 		// 村人目線での人狼候補決定アルゴリズム
@@ -369,10 +520,12 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				// 残り1縄での発言生成「人狼が確定しているAgentがいるのでそのAgentに投票します」
 				if(isTalk && getCoRole(me) == Role.SEER) {
 					// 自身の黒先の場合
-					
-					
+					if(fakeBlackList.contains(voteCandidate) && isCameout) {
+						Content myDivination = divinedContent(me, voteCandidate, Species.WEREWOLF);
+						voteReasonMap.put(me, voteCandidate, myDivination);
+					}
 					// 対抗占い師の場合
-					if(getCoRole(voteCandidate) == Role.SEER){
+					else if(getCoRole(voteCandidate) == Role.SEER){
 						Content reason = andContent(me, coContent(me, me, Role.SEER), coContent(voteCandidate, voteCandidate, Role.SEER));
 						estimateReasonMap.put(new Estimate(me, voteCandidate, reason, Role.WEREWOLF));
 						voteReasonMap.put(me, voteCandidate, reason);
@@ -552,7 +705,6 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 		return;
 	}
 	
-	
 	/** 投票候補から妖狐視点で吊りたい位置を優先して選択する */
 	private Agent selectVote(List<Agent> voteCandidates) {
 		if(wantExeScale.size() > 0) {
@@ -563,6 +715,62 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			}
 		}
 		return randomSelect(voteCandidates);
+	}
+	
+	@Override
+	public String talk() {
+		pretendSeerCO();
+		return super.talk();
+	}
+	
+	/** 占い師騙り */
+	private void pretendSeerCO() {
+		// もし占い師騙りが3人以上いたら潜伏する
+		if(getSeerCoNum() > 2) {
+			fakeRole = Role.VILLAGER;
+			return;
+		}
+		if(fakeRole == Role.SEER) {
+			if (!isCameout) {
+				// 対抗カミングアウトがある場合，今日カミングアウトする
+				for (Agent a : aliveOthers) {
+					if (comingoutMap.get(a) == fakeRole) {
+						comingoutDay = day;
+					}
+				}
+				// カミングアウトするタイミングになったらカミングアウト
+				if (day >= comingoutDay) {
+					isCameout = true;
+					enqueueTalk(coContent(me, me, fakeRole));
+				}
+			}
+			// カミングアウトしたらこれまでの偽判定結果をすべて公開 (今のところ白結果しか出さない)
+			else {
+				List<Content> judges = new ArrayList<>();
+				while (!myFakeDivineTargetQueue.isEmpty()) {
+					Species divined = Species.HUMAN;
+					// 占い結果の生成
+					Judge judge = new Judge(myFakeDivinedDayQueue.poll(), me, myFakeDivineTargetQueue.poll(), divined);
+					// 偽占い結果を登録
+					if(divined == Species.HUMAN) {
+						fakeWhiteList.add(judge.getTarget());
+					}
+					else {
+						fakeBlackList.add(judge.getTarget());
+					}
+					judges.add(dayContent(me, judge.getDay(), divinedContent(me, judge.getTarget(), judge.getResult())));
+				}
+				if (judges.size() == 1) {
+					enqueueTalk(judges.get(0));
+					enqueueTalk(judges.get(0).getContentList().get(0));
+				} else if (judges.size() > 1) {
+					enqueueTalk(andContent(me, judges.toArray(new Content[0])));
+					for (Content c : judges) {
+						enqueueTalk(c.getContentList().get(0));
+					}
+				}
+			}
+		}
 	}
 	
 	@Override
