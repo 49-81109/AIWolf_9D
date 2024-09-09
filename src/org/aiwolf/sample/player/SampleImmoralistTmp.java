@@ -503,11 +503,18 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		if(toAliveList(arrange.getDisitionRwList(self)).size() > 0) {
 			wantExeScale.add(toAliveList(arrange.getDisitionRwList(self)).get(0));
 		}
-		// 2.背徳者視点での確定占い師
+		// 2.背徳者視点での確定人外(自身と妖狐除く)かつ非背徳者候補
+		if(toAliveList(arrange.getDisitionSwfList(self)).size() > 2) {
+			List<Agent> voteCandidates = toAliveList(arrange.getDisitionSwfList(self)).stream().filter(a -> a != me && !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
+			for(Agent a : voteCandidates) {
+				wantExeScale.add(a);
+			}
+		}
+		// 3.背徳者視点での確定占い師
 		if(toAliveList(arrange.agentDisition(self, Role.SEER)).size() > 0) {
 			wantExeScale.add(toAliveList(arrange.agentDisition(self, Role.SEER)).get(0));
 		}
-		// 3.背徳者視点で偽が確定していない占い師のうち、次に妖狐を占ってきそうな占い師CO者(ゾーンはとりあえず除く、あからさまになりやすいので)
+		// 4.背徳者視点で偽が確定していない占い師のうち、次に妖狐を占ってきそうな占い師CO者(ゾーンはとりあえず除く、あからさまになりやすいので)
 		   // 具体的には占い師視点でのグレー位置が1つの場合
 		List<Agent> villagerCo = currentGameInfo.getAliveAgentList().stream().filter(a -> getCoRole(a) != Role.SEER).collect(Collectors.toList());
 		for(Agent seer : arrange.agentCandidate(self, Role.SEER)) {
@@ -517,7 +524,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				wantExeScale.add(seer);
 			}
 		}
-		// 4.自身が占い師COしていて背徳者視点で偽が確定していない占い師のうち自身への白結果を持っている占い師CO者(ラインから妖狐推定→占いされるリスク)
+		// 5.自身が占い師COしていて背徳者視点で偽が確定していない占い師のうち自身への白結果を持っている占い師CO者(ラインから妖狐推定→占いされるリスク)
 		if(getCoRole(me) == Role.SEER) {
 			List<Judge> forMeDivine = divinationList.stream().filter(j -> arrange.agentCandidate(self, Role.SEER).contains(j.getAgent())).collect(Collectors.toList());
 			forMeDivine = forMeDivine.stream().filter(j -> isAlive(j.getAgent()) && j.getTarget() == me).collect(Collectors.toList());
@@ -527,13 +534,13 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				}
 			}
 		}
-		// 5.妖狐に対して吊りたいと発言、または妖狐に投票したことのあるプレイヤー(非背徳者目)
+		// 6.妖狐に対して吊りたいと発言、または妖狐に投票したことのあるプレイヤー(非背徳者目)
 		for(Agent a : notImmoralistCandidates) {
 			if(!wantExeScale.contains(a)) {
 				wantExeScale.add(a);
 			}
 		}
-		// 6.背徳者視点で偽が確定していない占い師の黒先
+		// 7.背徳者視点で偽が確定していない占い師の黒先
 		List<Judge> forDivine = divinationList.stream().filter(j -> arrange.agentCandidate(self, Role.SEER).contains(j.getAgent()) && isAlive(j.getTarget())).collect(Collectors.toList());
 		List<Judge> forBlack = forDivine.stream().filter(j -> j.getResult() == Species.WEREWOLF).collect(Collectors.toList());
 		for(Judge j : forBlack) {
@@ -541,7 +548,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				wantExeScale.add(j.getTarget());
 			}
 		}
-		// 7.背徳者視点で偽が確定していない占い師の占われ先
+		// 8.背徳者視点で偽が確定していない占い師の占われ先
 		forDivine = forDivine.stream().filter(j -> j.getTarget() != me).collect(Collectors.toList());
 		for(Judge j : forDivine) {
 			if(!wantExeScale.contains(j.getTarget())) {
