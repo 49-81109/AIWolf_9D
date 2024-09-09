@@ -7,10 +7,8 @@ package org.aiwolf.sample.player;
 
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.aiwolf.client.lib.Content;
@@ -807,6 +805,17 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	
 	/** 占い師騙り */
 	private void pretendSeerCO() {
+		// もし妖狐が占い師騙りをしたら潜伏する
+		boolean isFoxPretend = false;
+		for(Agent fox : foxes) {
+			if(getCoRole(fox) == Role.SEER) {
+				isFoxPretend = true;
+			}
+		}
+		if(isFoxPretend) {
+			fakeRole = Role.VILLAGER;
+			return;
+		}
 		if(fakeRole == Role.SEER) {
 			if (!isCameout) {
 				// 対抗カミングアウトがある場合，今日カミングアウトする
