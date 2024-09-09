@@ -74,6 +74,9 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 	/** 妖狐視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
 	private static final int P_PrioScale = 77;
 	
+	/** 再投票のときに投票を変える確率 */
+	private static final int P_RevoteToChange = 21;
+	
 	/** 人外候補リスト */
 	private List<Agent> SwfCandidates = new ArrayList<>();
 	
@@ -337,23 +340,28 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			}
 		} else {
 			// 再投票の場合は自分以外の前回最多得票に入れる
-			VoteReasonMap vrmap = new VoteReasonMap();
-			for (Vote v : currentGameInfo.getLatestVoteList()) {
-				vrmap.put(v.getAgent(), v.getTarget(), null);
-			}
-			List<Agent> candidates = vrmap.getOrderedList();
-			candidates.remove(me);
-			if (candidates.isEmpty()) {
-				// できるだけ妖狐以外や非背徳者候補から投票先を決める
-				List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
-				if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(aliveEnemies);
+			if(randP(P_RevoteToChange)) {
+				if(chooseVoteWithArrangeTool(false)) {
+					return;
 				}
-				else {
-					voteCandidate = randomSelect(aliveOthers);
+				VoteReasonMap vrmap = new VoteReasonMap();
+				for (Vote v : currentGameInfo.getLatestVoteList()) {
+					vrmap.put(v.getAgent(), v.getTarget(), null);
 				}
-			} else {
-				voteCandidate = candidates.get(0);
+				List<Agent> candidates = vrmap.getOrderedList();
+				candidates.remove(me);
+				if (candidates.isEmpty()) {
+					// できるだけ妖狐以外や非背徳者候補から投票先を決める
+					List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
+					if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
+						voteCandidate = randomSelect(aliveEnemies);
+					}
+					else {
+						voteCandidate = randomSelect(aliveOthers);
+					}
+				} else {
+					voteCandidate = candidates.get(0);
+				}
 			}
 		}
 	}

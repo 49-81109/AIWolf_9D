@@ -71,6 +71,9 @@ public final class SampleSeer extends SampleBasePlayer {
 	
 	/** 2日目に初日追放者に投票しているAgentを占う確率 */
 	private static final int P_VoteToExecuted = 77;
+	
+	/** 再投票のときに投票を変える確率 */
+	private static final int P_RevoteToChange = 21;
 
 	@Override
 	public void initialize(GameInfo gameInfo, GameSetting gameSetting) {
@@ -122,7 +125,6 @@ public final class SampleSeer extends SampleBasePlayer {
 		}
 		voteCandidateWithArrangeTool();
 		
-
 
 		// 偽占い師は人狼か妖狐か背徳者
 		for (Agent he : aliveOthers) {
@@ -398,16 +400,21 @@ public final class SampleSeer extends SampleBasePlayer {
 			}
 		} else {
 			// 再投票の場合は自分以外の前回最多得票に入れる
-			VoteReasonMap vrmap = new VoteReasonMap();
-			for (Vote v : currentGameInfo.getLatestVoteList()) {
-				vrmap.put(v.getAgent(), v.getTarget(), null);
-			}
-			List<Agent> candidates = vrmap.getOrderedList();
-			candidates.remove(me);
-			if (candidates.isEmpty()) {
-				voteCandidate = randomSelect(aliveOthers);
-			} else {
-				voteCandidate = candidates.get(0);
+			if(randP(P_RevoteToChange)) {
+				if(chooseVoteWithArrangeTool(false)) {
+					return;
+				}
+				VoteReasonMap vrmap = new VoteReasonMap();
+				for (Vote v : currentGameInfo.getLatestVoteList()) {
+					vrmap.put(v.getAgent(), v.getTarget(), null);
+				}
+				List<Agent> candidates = vrmap.getOrderedList();
+				candidates.remove(me);
+				if (candidates.isEmpty()) {
+					voteCandidate = randomSelect(aliveOthers);
+				} else {
+					voteCandidate = candidates.get(0);
+				}
 			}
 		}
 	}
@@ -417,7 +424,7 @@ public final class SampleSeer extends SampleBasePlayer {
 		ArrangeToolLink arrange = getArrangeLink();
 		// 全視点での整理
 		String[][] every = getBoardArrange(arrange);
-		// 自分が村人視点での整理
+		// 自分が占い師視点での整理
 		String[][] self = getSelfBoardArrange(arrange, false);
 		// 人外候補リストの更新
 		SwfCandidates = addNonVillagerSideCandidates(arrange, self, SwfCandidates);
