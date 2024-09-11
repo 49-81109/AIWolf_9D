@@ -255,6 +255,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		// 襲撃対象が死亡しなかった場合、その対象は妖狐候補
 		if(!currentGameInfo.getLastDeadAgentList().contains(currentGameInfo.getAttackedAgent())) {
 			foxCandidates.add(currentGameInfo.getAttackedAgent());
+			foxCandidates = foxCandidates.stream().filter(a -> a != me && a != null).collect(Collectors.toList());
 		}
 		
 		// 妖狐候補視点での背徳者候補の更新
@@ -649,6 +650,15 @@ public final class SampleWerewolf extends SampleBasePlayer {
 
 	/** 襲撃先候補を選ぶ */
 	void chooseAttackVoteCandidate() {
+		/*
+		if(foxCandidates.size() > 0) {
+			System.out.println(foxCandidates.size());
+			for(Agent f : foxCandidates) {
+				System.out.println("fox? : " + f.getName());
+			}
+		}
+		//*/
+		
 		// 盤面整理ツールに連携
 		ArrangeToolLink arrange = getArrangeLink();
 		// 全視点での整理
@@ -663,11 +673,13 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		// 1.妖狐確定死亡時
 		if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
 			chooseAttackFoxDisitionDead(arrange, every, self, pretend);
+			System.out.println(attackVoteCandidate + " : 1");
 			return;
 		}
 		// 2.夜時点で4人盤面のとき (飽和回避を最優先で行う→妖狐候補を襲撃)
 		else if(currentGameInfo.getAliveAgentList().size() == 4) {
 			chooseAttackToFox(arrange, every, self, pretend);
+			System.out.println(attackVoteCandidate + " : 2");
 			return;
 		}
 		// 3.夜時点で5人盤面で 自視点で占い師候補が全滅していて 全視点で自身の人狼が確定しているとき (このときも妖狐候補を襲撃)
@@ -677,11 +689,13 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			 *  そのため5人盤面を維持するために妖狐狙いの襲撃を行う (占い師候補が全滅しているので呪殺は起こらない)
 			 */
 			chooseAttackToFox(arrange, every, self, pretend);
+			System.out.println(attackVoteCandidate + " : 3");
 			return;
 		}
 		// 4.自分が占い師COしていた場合
 		else if(comingoutMap.get(me) == Role.SEER) {
 			chooseAttackPretendSeer(arrange, every, self, pretend);
+			System.out.println(attackVoteCandidate + " : 4");
 			return;
 		}
 		// 5.自分が潜伏している場合
@@ -691,21 +705,25 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				// 占い師が1確している場合 (または全視点で占い師は2CO以上だが1人を除いて全員破綻している場合も含む)
 				if(arrange.agentCandidate(every, Role.SEER).size() == 1) {
 					chooseAttackDisitionSeer(arrange, every, self, pretend);
+					System.out.println(attackVoteCandidate + " : 5");
 					return;
 				}
 				// 占い師が2CO以上の場合
 				else {
 					chooseAttackMore2CoSeer(arrange, every, self, pretend);
+					System.out.println(attackVoteCandidate + " : 6");
 					return;
 				}
 			}
 			// 占い師のCOがない場合
 			else {
 				chooseAttackGray(arrange, every, self, pretend);
+				System.out.println(attackVoteCandidate + " : 7");
 			}
 		}
 		
 		if(attackVoteCandidate == null) {
+//			System.out.println("at no");
 			attackVoteCandidate = randomSelect(aliveOthers);
 		}
 		/*
@@ -819,8 +837,8 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	/** 妖狐狙いの襲撃先の決定関数 (襲撃関数優先度:2) */
 	private void chooseAttackToFox(ArrangeToolLink arrange, String[][] every, String[][] self, String[][] pretend) {
 		// 妖狐候補が見つかっている場合、その候補を襲撃
-		if(foxCandidates.size() > 0) {
-			attackVoteCandidate = randomSelect(foxCandidates);
+		if(toAliveList(foxCandidates).size() > 0) {
+			attackVoteCandidate = randomSelect(toAliveList(foxCandidates));
 			return;
 		}
 		// それ以外の場合、自視点での妖狐候補位置から襲撃
@@ -1016,7 +1034,16 @@ public final class SampleWerewolf extends SampleBasePlayer {
 	
 	@Override
 	public Agent attack() {
-		chooseAttackVoteCandidate();
+		attackVoteCandidate = null;
+		while(attackVoteCandidate == null || attackVoteCandidate == me) {
+			chooseAttackVoteCandidate();
+		}
+		if(attackVoteCandidate != null) {
+			System.out.println("attack -> " + attackVoteCandidate.getName());
+		}
+		else {
+			System.out.println("attack -> null");
+		}
 		return attackVoteCandidate;
 	}
 
