@@ -299,7 +299,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				estimateReasonMap.put(new Estimate(me, he, reason, Role.WEREWOLF, Role.FOX, Role.IMMORALIST));
 			}
 		}
-		wolfCandidates = excludeFoxList(wolfCandidates);
+		wolfCandidates = excludeFoxMeList(wolfCandidates);
 
 		if (!wolfCandidates.isEmpty()) {
 			// 見つかった場合
@@ -316,7 +316,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			// 見つからなかった場合ランダム
 			if (voteCandidate == null || !isAlive(voteCandidate)) {
 				// 妖狐以外から投票先を決める
-				List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
+				List<Agent> aliveEnemies = excludeFoxMeList(aliveOthers);
 				
 				// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
 				List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
@@ -359,7 +359,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 					voteCandidate = selectVote(voteReqEnemies2);
 				}
 				if (voteCandidate == null || !isAlive(voteCandidate)) {
-					List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
+					List<Agent> aliveEnemies = excludeFoxMeList(aliveOthers);
 					// 吊り縄が3のときは確定村人陣営を投票候補から外す
 					if(arrange.getTotalState(every).get("count-expelled") == 3) {
 						aliveEnemies = aliveEnemies.stream().filter(a -> !arrange.getDisitionSvList(every).contains(a)).collect(Collectors.toList());
@@ -391,7 +391,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				}
 				
 				if (candidates.isEmpty()) {
-					List<Agent> aliveEnemies = excludeFoxList(aliveOthers);
+					List<Agent> aliveEnemies = excludeFoxMeList(aliveOthers);
 					// 非背徳者候補の生存者がいる場合は確率P_VoteNotRiCandidateでその候補の中から投票
 					List<Agent> aliveEnemies2 = aliveEnemies.stream().filter(a -> notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 					if(aliveEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
@@ -430,6 +430,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 		// 残り吊り縄が1の場合人狼候補に対して投票
 		if(arrange.getTotalState(pretend).get("count-expelled") == 1) {
 			chooseVoteToWolf(arrange, every, pretend, isTalk);
+//			System.out.println("残り吊り縄が1の場合人狼候補に対して投票");
 			return true;
 		}
 		
@@ -470,6 +471,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 						Content reason = orContent(me, estimateContent(me, voteCandidate, Role.FOX), estimateContent(me, voteCandidate, Role.IMMORALIST));
 						voteReasonMap.put(me, voteCandidate, reason);
 					}
+//					System.out.println("騙り役職視点での白人外候補(妖狐除く)");
 					return true;
 				}
 			}
@@ -488,15 +490,18 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			List<Agent> seerAliveCandidates = currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(pretend, Role.SEER).contains(a)).collect(Collectors.toList());
 			if(seerAliveCandidates.size() == 0 && arrange.getTotalState(pretend).get("count-expelled") == 2) {
 				chooseVoteToFox(arrange, every, pretend, isTalk);
+//				System.out.println("占い師が確定で死亡していて残り2縄");
 				return true;
 			}
 			// 残り縄数が3のとき占い師COが2人以下の場合占い師を投票候補から外す、また人狼COが2人以下の場合も人狼を投票候補から外す. 逆に占い師COが4人以上の場合は占い師から投票する
 			if(arrange.getTotalState(pretend).get("count-expelled") == 3) {
 				chooseVoteLeave3(arrange, every, pretend, isTalk);
+//				System.out.println("残り縄数が3のとき");
 				return true;
 			}
 			// それ以外の場合、確定村人陣営と妖狐を除いたプレイヤーからランダム
 			voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
+//			System.out.println("それ以外");
 			return true;
 		}
 		return false;
@@ -570,8 +575,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			for(Agent wolf : arrange.getDisitionRwList(pretend)) {
 				wolfCandidates.add(wolf);
 			}
-			if(excludeFoxList(arrange.getDisitionRwList(pretend)).size() > 0) {
-				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionRwList(pretend)));
+			if(excludeFoxMeList(arrange.getDisitionRwList(pretend)).size() > 0) {
+//				System.out.println("確定人狼狙い :579");
+				voteCandidate = selectVote(excludeFoxMeList(arrange.getDisitionRwList(pretend)));
 				// 残り1縄での発言生成「人狼が確定しているAgentがいるのでそのAgentに投票します」
 				if(isTalk && getCoRole(me) == Role.SEER) {
 					// 自身の黒先の場合
@@ -663,18 +669,21 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			for(Agent Swf : arrange.getDisitionSwfList(pretend)) {
 				wolfCandidates.add(Swf);
 			}
-			if(excludeFoxList(arrange.getDisitionSwfList(pretend)).size() > 0) {
-				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionSwfList(pretend)));
+			if(excludeFoxMeList(arrange.getDisitionSwfList(pretend)).size() > 0) {
+//				System.out.println("確定人外狙い :673");
+				voteCandidate = selectVote(excludeFoxMeList(arrange.getDisitionSwfList(pretend)));
 				return;
 			}
 		}
 		// 4.妖狐を除いた人外候補がいる場合
-		if(excludeFoxList(toAliveList(SwfCandidates)).size() > 0) {
-			voteCandidate = selectVote(excludeFoxList(toAliveList(SwfCandidates)));
+		if(excludeFoxMeList(toAliveList(SwfCandidates)).size() > 0) {
+			voteCandidate = selectVote(excludeFoxMeList(toAliveList(SwfCandidates)));
+//			System.out.println("人外候補 :681");
 			return;
 		}
 		// 5.それ以外の場合は妖狐と確定村人陣営を除いたプレイヤーからランダム
-		voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
+		voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a) && a != me).collect(Collectors.toList()));
+//		System.out.println("それ以外 :686");
 		return;
 	}
 	
@@ -685,8 +694,9 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			for(Agent Swf : arrange.getDisitionSwfList(pretend)) {
 				wolfCandidates.add(Swf);
 			}
-			if(excludeFoxList(arrange.getDisitionSwfList(pretend)).size() > 0) {
-				voteCandidate = selectVote(excludeFoxList(arrange.getDisitionSwfList(pretend)));
+			if(excludeFoxMeList(arrange.getDisitionSwfList(pretend)).size() > 0) {
+//				System.out.println("確定人外狙い :698");
+				voteCandidate = selectVote(excludeFoxMeList(arrange.getDisitionSwfList(pretend)));
 				if(isTalk && getCoRole(me) == Role.VILLAGER) {
 					if(getCoRole(voteCandidate) == Role.SEER) {
 						if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
@@ -720,12 +730,14 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			}
 		}
 		// 人外候補がいる場合
-		if(excludeFoxList(toAliveList(SwfCandidates)).size() > 0) {
-			voteCandidate = selectVote(excludeFoxList(toAliveList(SwfCandidates)));
+		if(excludeFoxMeList(toAliveList(SwfCandidates)).size() > 0) {
+//			System.out.println("人外候補 :734");
+			voteCandidate = selectVote(excludeFoxMeList(toAliveList(SwfCandidates)));
 			return;
 		}
-		List<Agent> voteCandidates = excludeFoxList(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(pretend, Role.FOX).contains(a)).collect(Collectors.toList()));
+		List<Agent> voteCandidates = excludeFoxMeList(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(pretend, Role.FOX).contains(a)).collect(Collectors.toList()));
 		if(voteCandidates.size() > 0) {
+//			System.out.println("それ以外 :740");
 			voteCandidate = selectVote(voteCandidates);
 			return;
 		}
@@ -775,18 +787,22 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	@Override
 	public Agent vote() {
 		chooseFinalVoteCandidate();
-		isRevote = true;
-		if(foxes.contains(voteCandidate)) {
-			List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a)).collect(Collectors.toList());
-			voteCandidate = selectVote(aliveEnemies);
+		while(foxes.contains(voteCandidate) || voteCandidate == me || voteCandidate == null) {
+			voteCandidate = null;
+			chooseFinalVoteCandidate();
 		}
-//		System.out.println(me.getName() + "----" + voteCandidate.getName());
+		isRevote = true;
 		return voteCandidate;
 	}
 	
 	/** 非妖狐のみをフィルタ */
 	public List<Agent> excludeFoxList(List<Agent> list) {
 		return list.stream().filter(a -> !foxes.contains(a)).collect(Collectors.toList());
+	}
+	
+	/** 自分と妖狐以外をフィルタ */
+	public List<Agent> excludeFoxMeList(List<Agent> list) {
+		return list.stream().filter(a -> a != me && !foxes.contains(a)).collect(Collectors.toList());
 	}
 	
 	/** 背徳者視点の整理実行 */
