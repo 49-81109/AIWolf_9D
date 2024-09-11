@@ -415,18 +415,34 @@ public class AIWolfGame {
 					System.out.printf("[%d]%s suicided after the death of fox ( [%d]%s )\n", a.getAgentIdx(), getAgentName(a), yesterday.getExecuted().getAgentIdx(), getAgentName(yesterday.getExecuted()));
 				}
 			}
-			boolean isContinue = false;
-			int humanCount = 0;
+			
+			List<Agent> alivesLastnight = new ArrayList<>();
 			for(Agent agent : gameData.getAgentList()) {
-				if(gameData.getRole(agent) == Role.WEREWOLF && gameData.getStatus(agent) == Status.ALIVE) {
-					isContinue = true;
+				if(gameData.getStatus(agent) == Status.ALIVE) {
+					alivesLastnight.add(agent);
 				}
-				if((gameData.getRole(agent) == Role.VILLAGER || gameData.getRole(agent) == Role.SEER || gameData.getRole(agent) == Role.IMMORALIST) && gameData.getStatus(agent) == Status.ALIVE) {
+				else if(yesterday.getAttackedDead() == agent) {
+					alivesLastnight.add(agent);
+				}
+				else if(yesterday.getCursedFox() == agent) {
+					alivesLastnight.add(agent);
+				}
+				else if(yesterday.getSuicideImmoralistWithCursedFoxList().contains(agent)) {
+					alivesLastnight.add(agent);
+				}
+			}
+			int wolfCount = 0;
+			int humanCount = 0;
+			for(Agent agent : alivesLastnight) {
+				if(gameData.getRole(agent) == Role.WEREWOLF) {
+					wolfCount++;
+				}
+				if((gameData.getRole(agent) == Role.VILLAGER || gameData.getRole(agent) == Role.SEER || gameData.getRole(agent) == Role.IMMORALIST)) {
 					humanCount++;
 				}
 			}
-			
-			if(isContinue && humanCount > 1) {
+//			System.out.println("wolf : " + wolfCount + ", human : " + humanCount + ", total : " + alivesLastnight.size());
+			if(wolfCount > 0 && humanCount > wolfCount) {
 				System.out.println("========Actions========");
 				if(divine != null){
 					System.out.printf("[%d]%s divine [%d]%s. Result is %s\n", divine.getAgent().getAgentIdx(), getAgentName(divine.getAgent()), divine.getTarget().getAgentIdx(), getAgentName(divine.getTarget()), divine.getResult());
@@ -634,6 +650,7 @@ public class AIWolfGame {
 				if (attacked == null && !gameSetting.isEnableNoAttack()) {
 					Collections.shuffle(candidates, rand);
 					if(candidates.size() > 0) {
+						System.out.println("no attack candidate");
 						attacked = candidates.get(0);
 					}
 				}
