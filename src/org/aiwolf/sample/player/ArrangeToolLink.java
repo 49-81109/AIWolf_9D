@@ -76,7 +76,7 @@ public class ArrangeToolLink {
 		this.isSeerCameout = base.isCo(Role.SEER);
 		int seerCoNum = 0;
 		for(Agent a : base.currentGameInfo.getAgentList()) {
-			if(base.getCoRole(a) == Role.SEER) {
+			if(base.getCoRole(a) == Role.SEER && getSeerResult(a).size() > 0) {
 				seerCoNum++;
 			}
 		}
@@ -167,26 +167,28 @@ public class ArrangeToolLink {
 		for(Agent seer : base.currentGameInfo.getAgentList()) {
 			String seerCOstr = "";
 			if(base.comingoutMap.get(seer) == Role.SEER) {
-				seerCOstr = "seerCO=[" + seer.getAgentIdx() + ",{";
 				List<Judge> seerResult = getSeerResult(seer);
 				int divD = 1;
-				for(Judge j : seerResult) {
-					if(j.getDay() == divD) {
-						seerCOstr = seerCOstr + j.getTarget().getAgentIdx() + ":";
-						if(j.getResult() == Species.HUMAN) {
-							seerCOstr = seerCOstr + "false";
-						}
-						else {
-							seerCOstr = seerCOstr + "true";
-						}
-						seerCOstr = seerCOstr + ",";
-						divD++;
-					}
-				}
 				if(seerResult.size() > 0) {
-					seerCOstr = seerCOstr.substring(0, seerCOstr.length() - 1);
+					seerCOstr = "seerCO=[" + seer.getAgentIdx() + ",{";
+					for(Judge j : seerResult) {
+						if(j.getDay() == divD) {
+							seerCOstr = seerCOstr + j.getTarget().getAgentIdx() + ":";
+							if(j.getResult() == Species.HUMAN) {
+								seerCOstr = seerCOstr + "false";
+							}
+							else {
+								seerCOstr = seerCOstr + "true";
+							}
+							seerCOstr = seerCOstr + ",";
+							divD++;
+						}
+					}
+					if(seerResult.size() > 0) {
+						seerCOstr = seerCOstr.substring(0, seerCOstr.length() - 1);
+					}
+					seerCOstr = seerCOstr + "}," + base.CODayMap.get(seer) + "];\n";
 				}
-				seerCOstr = seerCOstr + "}," + base.CODayMap.get(seer) + "];\n";
 			}
 			input = input + seerCOstr;
 		}
