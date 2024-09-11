@@ -673,13 +673,13 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		// 1.妖狐確定死亡時
 		if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
 			chooseAttackFoxDisitionDead(arrange, every, self, pretend);
-			System.out.println(attackVoteCandidate + " : 1");
+//			System.out.println(attackVoteCandidate + " : 1");
 			return;
 		}
 		// 2.夜時点で4人盤面のとき (飽和回避を最優先で行う→妖狐候補を襲撃)
 		else if(currentGameInfo.getAliveAgentList().size() == 4) {
 			chooseAttackToFox(arrange, every, self, pretend);
-			System.out.println(attackVoteCandidate + " : 2");
+//			System.out.println(attackVoteCandidate + " : 2");
 			return;
 		}
 		// 3.夜時点で5人盤面で 自視点で占い師候補が全滅していて 全視点で自身の人狼が確定しているとき (このときも妖狐候補を襲撃)
@@ -689,13 +689,13 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			 *  そのため5人盤面を維持するために妖狐狙いの襲撃を行う (占い師候補が全滅しているので呪殺は起こらない)
 			 */
 			chooseAttackToFox(arrange, every, self, pretend);
-			System.out.println(attackVoteCandidate + " : 3");
+//			System.out.println(attackVoteCandidate + " : 3");
 			return;
 		}
 		// 4.自分が占い師COしていた場合
 		else if(comingoutMap.get(me) == Role.SEER) {
 			chooseAttackPretendSeer(arrange, every, self, pretend);
-			System.out.println(attackVoteCandidate + " : 4");
+//			System.out.println(attackVoteCandidate + " : 4");
 			return;
 		}
 		// 5.自分が潜伏している場合
@@ -705,20 +705,20 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				// 占い師が1確している場合 (または全視点で占い師は2CO以上だが1人を除いて全員破綻している場合も含む)
 				if(arrange.agentCandidate(every, Role.SEER).size() == 1) {
 					chooseAttackDisitionSeer(arrange, every, self, pretend);
-					System.out.println(attackVoteCandidate + " : 5");
+//					System.out.println(attackVoteCandidate + " : 5");
 					return;
 				}
 				// 占い師が2CO以上の場合
 				else {
 					chooseAttackMore2CoSeer(arrange, every, self, pretend);
-					System.out.println(attackVoteCandidate + " : 6");
+//					System.out.println(attackVoteCandidate + " : 6");
 					return;
 				}
 			}
 			// 占い師のCOがない場合
 			else {
 				chooseAttackGray(arrange, every, self, pretend);
-				System.out.println(attackVoteCandidate + " : 7");
+//				System.out.println(attackVoteCandidate + " : 7");
 			}
 		}
 		
@@ -1039,10 +1039,10 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			chooseAttackVoteCandidate();
 		}
 		if(attackVoteCandidate != null) {
-			System.out.println("attack -> " + attackVoteCandidate.getName());
+//			System.out.println("attack -> " + attackVoteCandidate.getName());
 		}
 		else {
-			System.out.println("attack -> null");
+//			System.out.println("attack -> null");
 		}
 		return attackVoteCandidate;
 	}
