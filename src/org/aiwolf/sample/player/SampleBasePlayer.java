@@ -478,7 +478,7 @@ public class SampleBasePlayer implements Player {
 			victimAgents.add(dayVic);
 		}
 		if(currentGameInfo.getVoteList() != null) {
-			for(Vote vote : currentGameInfo.getLatestVoteList()) {
+			for(Vote vote : currentGameInfo.getVoteList()) {
 				voteList.add(vote);
 			}
 		}
@@ -508,10 +508,14 @@ public class SampleBasePlayer implements Player {
 	/** あるAgentが投票したことのあるAgentのリスト */
 	List<Agent> getVoteTarget(Agent voter) {
 		List<Agent> voteTarget = new ArrayList<>();
-		for(Vote vote : currentGameInfo.getLatestVoteList()) {
+		//System.out.println(voteList.size());
+		//System.out.println(currentGameInfo.getVoteList().size());
+		for(Vote vote : voteList) {
+			//System.out.println(vote.getDay() + ":" + vote.getAgent() + "-> " + vote.getTarget());
 			if(vote.getAgent() == voter) {
 				if(!voteTarget.contains(vote.getTarget())) {
 					voteTarget.add(vote.getTarget());
+					
 				}
 			}
 		}
@@ -735,7 +739,12 @@ public class SampleBasePlayer implements Player {
 	public Agent vote() {
 		chooseFinalVoteCandidate();
 		isRevote = true;
-		//arrangeTool();
+		if(voteCandidate == null) {
+//			System.out.println("******************************************************** null : " + me.getName());
+		}
+		else if (voteCandidate == me) {
+//			System.out.println("******************************************************** self : " + me.getName());
+		}
 		return voteCandidate;
 	}
 
