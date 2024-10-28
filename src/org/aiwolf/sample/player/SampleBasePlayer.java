@@ -168,6 +168,9 @@ public class SampleBasePlayer implements Player {
 	/** 投票リクエストカウンタ */
 	VoteRequestCounter voteRequestCounter = new VoteRequestCounter();
 	
+	/** total投票リクエストカウンタ */
+	VoteRequestCounter voteTotalRequestCounter = new VoteRequestCounter();
+	
 	/** 実際の投票先リスト */
 	List<Vote> voteList = new ArrayList<>();
 	
@@ -290,6 +293,7 @@ public class SampleBasePlayer implements Player {
 		killedAgents.clear();
 		divinationList.clear();
 		identList.clear();
+		voteTotalRequestCounter.clear();
 		comingoutMap.clear();
 		NotVillagerSideCOMap.clear();
 		CODayMap.clear();
@@ -429,6 +433,7 @@ public class SampleBasePlayer implements Player {
 			break;
 		case REQUEST:
 			if (voteRequestCounter.add(content)) {
+				voteTotalRequestCounter.add(content);
 				return; // 投票リクエストと解析できた
 			}
 			break;
@@ -441,6 +446,8 @@ public class SampleBasePlayer implements Player {
 
 	@Override
 	public void dayStart() {
+		//System.out.println("******");
+		//System.out.println("sample.day :::::::::::::::::::::::::::::::::::: " + currentGameInfo.getVoteList().size());
 		isRevote = false;
 		talkQueue.clear();
 		declaredVoteCandidate = null;
@@ -478,6 +485,8 @@ public class SampleBasePlayer implements Player {
 			victimAgents.add(dayVic);
 		}
 		if(currentGameInfo.getVoteList() != null) {
+			//System.out.println("******");
+			//System.out.println("sample : " + currentGameInfo.getLatestVoteList().size());
 			for(Vote vote : currentGameInfo.getVoteList()) {
 				voteList.add(vote);
 			}
@@ -571,13 +580,14 @@ public class SampleBasePlayer implements Player {
 	
 	/** あるAgentが追放したいと思っているAgentのリスト */
 	List<Agent> getWantExecuteTarget(Agent agent) {
-		List<Agent> wantExe = getVoteTarget(agent);
-		for(Agent a : voteRequestCounter.getRequestMap().keySet()) {
-			if(a == agent && !wantExe.contains(voteRequestCounter.getRequestMap().get(a))) {
-				wantExe.add(voteRequestCounter.getRequestMap().get(a));
+		List<Agent> wantExe = toAliveList(getVoteTarget(agent));
+		for(Agent a : voteTotalRequestCounter.getRequestMap().keySet()) {
+			if(a == agent && !wantExe.contains(voteTotalRequestCounter.getRequestMap().get(a))) {
+				wantExe.add(voteTotalRequestCounter.getRequestMap().get(a));
+				//System.out.println(agent.getName() + " :: " + voteRequestCounter.getRequestMap().get(a).getName());
 			}
 		}
-		return wantExe;
+		return toAliveList(wantExe);
 	}
 	
 	/** 人外候補リストの追加(originは昨日時点での人外候補リスト)<br>
