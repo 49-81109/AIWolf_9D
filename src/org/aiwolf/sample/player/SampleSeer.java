@@ -545,17 +545,29 @@ public final class SampleSeer extends SampleBasePlayer {
 
 	/** 妖狐狙いの投票 (投票関数優先度:2) */
 	private void chooseVoteToFox(ArrangeToolLink arrange, String[][] every, String[][] self, boolean isTalk) {
+		// 人狼が確定しているプレイヤーは投票候補から外す
+		List<Agent> voteCandidates = aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(self).contains(a) && !arrange.getDisitionRwList(self).contains(a)).collect(Collectors.toList());
 		// 盤面上で確定人外がいる場合
 		if(arrange.getTotalState(self).get("disi-a-Swf") > 0) {
 			for(Agent Swf : arrange.getDisitionSwfList(self)) {
 				wolfCandidates.add(Swf);
 			}
-			voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
-			return;
+			List<Agent> candidates = voteCandidates.stream().filter(a -> arrange.getDisitionSwfList(self).contains(a)).collect(Collectors.toList());
+			if(candidates.size() > 0) {
+				voteCandidate = randomSelect(arrange.getDisitionSwfList(self));
+				// ただし占い師2COで対抗が噛まれていない場合人狼の可能性が高いので投票候補から外す
+				if(getSeerCoNum() == 2 && aliveOthers.stream().filter(a -> getCoRole(a) == Role.SEER).collect(Collectors.toList()).size() > 0) {
+					voteCandidates = voteCandidates.stream().filter(a -> getCoRole(a) != Role.SEER).collect(Collectors.toList());
+				}
+				else {
+					return;
+				}
+			}
 		}
 		// 人外候補がいる場合
-		if(toAliveList(SwfCandidates).size() > 0) {
-			voteCandidate = randomSelect(toAliveList(SwfCandidates));
+		if(voteCandidates.stream().filter(a -> toAliveList(SwfCandidates).contains(a)).collect(Collectors.toList()).size() > 0) {
+			voteCandidates = voteCandidates.stream().filter(a -> toAliveList(SwfCandidates).contains(a)).collect(Collectors.toList());
+			voteCandidate = randomSelect(voteCandidates);
 			return;
 		}
 		voteCandidate = randomSelect(currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(self, Role.FOX).contains(a)).collect(Collectors.toList()));
