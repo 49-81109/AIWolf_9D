@@ -72,7 +72,7 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 	private static final int P_PretendSeer = 3;
 	
 	/** 妖狐視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
-	private static final int P_PrioScale = 77;
+	private static final int P_PrioScale = 63;
 	
 	/** 再投票のときに投票を変える確率 */
 	private static final int P_RevoteToChange = 21;
@@ -290,7 +290,7 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			// 見つかった場合
 			if (!wolfCandidates.contains(voteCandidate)) {
 				// 新しい投票先の場合，推測発言をする
-				voteCandidate = randomSelect(wolfCandidates);
+				voteCandidate = selectVote(wolfCandidates);
 				Estimate estimate = estimateReasonMap.getEstimate(me, voteCandidate);
 				if (estimate != null) {
 					enqueueTalk(estimate.toContent());
@@ -305,13 +305,13 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				
 				// 4人盤面のときは100%の確率で非背徳者候補がいたらそこに入れる
 				if(aliveEnemies.size() > 0 && aliveOthers.size() == 3) {
-					voteCandidate = randomSelect(aliveEnemies);
+					voteCandidate = selectVote(aliveEnemies);
 				}
 				else if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(aliveEnemies);
+					voteCandidate = selectVote(aliveEnemies);
 				}
 				else {
-					voteCandidate = randomSelect(aliveOthers);
+					voteCandidate = selectVote(aliveOthers);
 				}
 			}
 		}
@@ -329,13 +329,13 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 			// 人狼候補が見つけられなかった場合，初回投票では投票リクエストに応じる
 			if (wolfCandidates.isEmpty()) {
 				List<Agent> voteReqEnemies = voteRequestCounter.getRequestMap().values().stream().filter(a -> a != me && !foxes.contains(a)).collect(Collectors.toList());
-				voteCandidate = randomSelect(voteReqEnemies);
+				voteCandidate = selectVote(voteReqEnemies);
 				List<Agent> voteReqEnemies2 = voteRequestCounter.getRequestMap().values().stream().filter(a -> a != me && !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 				if(voteReqEnemies2.size() > 0 && randP(P_VoteNotRiCandidate)) {
-					voteCandidate = randomSelect(voteReqEnemies2);
+					voteCandidate = selectVote(voteReqEnemies2);
 				}
 				if (voteCandidate == null || !isAlive(voteCandidate)) {
-					voteCandidate = randomSelect(aliveOthers);
+					voteCandidate = selectVote(aliveOthers);
 				}
 			}
 		} else {
@@ -354,10 +354,10 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 					// できるだけ妖狐以外や非背徳者候補から投票先を決める
 					List<Agent> aliveEnemies = aliveOthers.stream().filter(a -> !foxes.contains(a) && notImmoralistCandidates.contains(a)).collect(Collectors.toList());
 					if(aliveEnemies.size() > 0 && randP(P_VoteNotRiCandidate)) {
-						voteCandidate = randomSelect(aliveEnemies);
+						voteCandidate = selectVote(aliveEnemies);
 					}
 					else {
-						voteCandidate = randomSelect(aliveOthers);
+						voteCandidate = selectVote(aliveOthers);
 					}
 				} else {
 					voteCandidate = candidates.get(0);
@@ -403,7 +403,7 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				// 騙り役職視点での白人外候補(妖狐除く)
 				List<Agent> disitionSfList = arrange.getDisitionSwfList(pretend).stream().filter(a -> arrange.getDisitionNRwList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList());
 				if(disitionSfList.size() > 0) {
-					voteCandidate = randomSelect(disitionSfList);
+					voteCandidate = selectVote(disitionSfList);
 					if(isTalk && getCoRole(me) == Role.VILLAGER) {
 						if(getCoRole(voteCandidate) == Role.SEER) {
 							if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
@@ -444,7 +444,13 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				}
 			}
 			if(SfCOList.size() > 0) {
-				voteCandidate = randomSelect(SfCOList);
+				voteCandidate = selectVote(SfCOList);
+				return true;
+			}
+			// 占い師を騙っている場合で残り2縄の場合対抗に投票
+			List<Agent> pretendFakeSeer = aliveOthers.stream().filter(a -> getCoRole(a) == Role.SEER).collect(Collectors.toList());
+			if(getCoRole(me) == Role.SEER && arrange.getTotalState(pretend).get("count-expelled") == 2 && pretendFakeSeer.size() > 0) {
+				voteCandidate = selectVote(pretendFakeSeer);
 				return true;
 			}
 			// 占い師が確定で死亡していて残り2縄の場合、騙り視点での偽装妖狐が否定されてないプレイヤーからランダム
@@ -459,7 +465,7 @@ public final class SampleFoxTmp extends SampleBasePlayer {
 				return true;
 			}
 			// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
-			voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
+			voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
 			return true;
 		}
 		return false;

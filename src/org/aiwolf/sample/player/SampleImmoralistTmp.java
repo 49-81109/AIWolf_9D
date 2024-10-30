@@ -72,7 +72,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	private static final int P_VoteNotRiCandidate = 77;
 	
 	/** 占い師を騙る確率 */
-	private static final int P_PretendSeer = 35;
+	private static final int P_PretendSeer = 21;
 	
 	/** 背徳者視点で吊りたい該当Agentに投票を決める確率(外れたら次の候補に) */
 	private static final int P_PrioScale = 77;
@@ -168,7 +168,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 			//String[][] self = getSelfBoardArrange(arrange, false);
 			// 自身が主張する村人陣営役職視点での整理
 			String[][] pretend = getCOBoardArrange(arrange, me, false);
-			// 人外候補リストの更新
+			// 人外候補リストの更新 
 			SwfCandidates = addNonVillagerSideCandidates(arrange, pretend, SwfCandidates);
 			
 			if(!arrange.isBankruptcy(pretend)) {
@@ -441,7 +441,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				// 騙り役職視点での白人外候補(妖狐除く)
 				List<Agent> disitionSfList = arrange.getDisitionSwfList(pretend).stream().filter(a -> arrange.getDisitionNRwList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList());
 				if(disitionSfList.size() > 0) {
-					voteCandidate = randomSelect(disitionSfList);
+					voteCandidate = selectVote(disitionSfList);
 					if(isTalk && getCoRole(me) == Role.VILLAGER) {
 						if(getCoRole(voteCandidate) == Role.SEER) {
 							if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
@@ -483,7 +483,13 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				}
 			}
 			if(SfCOList.size() > 0) {
-				voteCandidate = randomSelect(SfCOList);
+				voteCandidate = selectVote(SfCOList);
+				return true;
+			}
+			// 占い師を騙っている場合で残り2縄の場合対抗に投票
+			List<Agent> pretendFakeSeer = aliveOthers.stream().filter(a -> getCoRole(a) == Role.SEER && !foxes.contains(a)).collect(Collectors.toList());
+			if(getCoRole(me) == Role.SEER && arrange.getTotalState(pretend).get("count-expelled") == 2 && pretendFakeSeer.size() > 0) {
+				voteCandidate = selectVote(pretendFakeSeer);
 				return true;
 			}
 			// 占い師が確定で死亡していて残り2縄の場合、騙り視点での偽装妖狐が否定されてないプレイヤーからランダム
@@ -500,7 +506,7 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 				return true;
 			}
 			// それ以外の場合、確定村人陣営と妖狐を除いたプレイヤーからランダム
-			voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
+			voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a) && !foxes.contains(a)).collect(Collectors.toList()));
 //			System.out.println("それ以外");
 			return true;
 		}
