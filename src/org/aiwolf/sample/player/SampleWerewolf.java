@@ -417,7 +417,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			// 既定の投票先が生存偽人狼でない場合投票先を変える
 			if (!aliveFakeWolves.isEmpty()) {
 				if (!aliveFakeWolves.contains(voteCandidate)) {
-					voteCandidate = randomSelect(aliveFakeWolves);
+					voteCandidate = selectVote(aliveFakeWolves);
 					// CO後なら投票理由を付ける
 					if (isCameout) {
 						Content myDivination = divinedContent(me, voteCandidate, myFakeJudgeMap.get(voteCandidate).getResult());
@@ -535,7 +535,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			// 見つかった場合
 			if (!fakeWolfCandidates.contains(voteCandidate)) {
 				// 新しい投票先の場合，推測発言をする
-				voteCandidate = randomSelect(fakeWolfCandidates);
+				voteCandidate = selectVote(fakeWolfCandidates);
 				Estimate estimate = estimateReasonMap.getEstimate(me, voteCandidate);
 				if (estimate != null) {
 					enqueueTalk(estimate.toContent());
@@ -556,9 +556,9 @@ public final class SampleWerewolf extends SampleBasePlayer {
 					}
 				}
 				if (!fakeGrayList.isEmpty()) {
-					voteCandidate = randomSelect(fakeGrayList);
+					voteCandidate = selectVote(fakeGrayList);
 				} else {
-					voteCandidate = randomSelect(aliveOthers);
+					voteCandidate = selectVote(aliveOthers);
 				}
 			}
 		}
@@ -577,7 +577,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			// 4人盤面では妖狐確定位置がいたらそこに投票
 			if(currentGameInfo.getAliveAgentList().size() == 4) {
 				if(foxCandidates.size() > 0) {
-					voteCandidate = randomSelect(foxCandidates);
+					voteCandidate = selectVote(foxCandidates);
 					return;
 				}
 			}
@@ -591,7 +591,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			if(arrange.getTotalState(every).get("max-a-Rf") == 0) {
 				List<Agent> candidates = aliveOthers.stream().filter(a -> !arrange.getDisitionNRwList(every).contains(a)).collect(Collectors.toList());
 				if (!candidates.isEmpty()) {
-					voteCandidate = randomSelect(candidates);
+					voteCandidate = selectVote(candidates);
 					return;
 				}
 			}
@@ -599,12 +599,12 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			// 4人盤面では妖狐確定位置がいたらそこに投票、それ以外の場合妖狐が否定されてないプレイヤーから投票
 			if(currentGameInfo.getAliveAgentList().size() == 4) {
 				if(foxCandidates.size() > 0) {
-					voteCandidate = randomSelect(foxCandidates);
+					voteCandidate = selectVote(foxCandidates);
 					return;
 				}
 				List<Agent> candidates = aliveOthers.stream().filter(a -> arrange.agentCandidate(self, Role.FOX).contains(a)).collect(Collectors.toList());
 				if (!candidates.isEmpty()) {
-					voteCandidate = randomSelect(candidates);
+					voteCandidate = selectVote(candidates);
 					return;
 				}
 			}
@@ -614,7 +614,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				List<Agent> candidates = voteRequestCounter.getRequestMap().values().stream()
 						.filter(a -> !werewolves.contains(a)).collect(Collectors.toList());
 				if (candidates != null && !candidates.isEmpty()) {
-					voteCandidate = randomSelect(candidates);
+					voteCandidate = selectVote(candidates);
 				} else {
 					candidates = aliveOthers;
 					List<Agent> candidates0 = candidates.stream()
@@ -627,7 +627,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 							candidates = candidates1;
 						}
 					}
-					voteCandidate = randomSelect(candidates);
+					voteCandidate = selectVote(candidates);
 				}
 			}
 		} else {
@@ -643,7 +643,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				List<Agent> candidates = vrmap.getOrderedList();
 				candidates.remove(me);
 				if (candidates.isEmpty()) {
-					voteCandidate = randomSelect(aliveOthers);
+					voteCandidate = selectVote(aliveOthers);
 				} else {
 					voteCandidate = candidates.get(0);
 				}
@@ -684,7 +684,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				// 騙り役職視点での白人外候補
 				List<Agent> disitionSfList = arrange.getDisitionSwfList(pretend).stream().filter(a -> arrange.getDisitionNRwList(pretend).contains(a)).collect(Collectors.toList());
 				if(disitionSfList.size() > 0) {
-					voteCandidate = randomSelect(disitionSfList);
+					voteCandidate = selectVote(disitionSfList);
 					if(isTalk && getCoRole(me) == Role.VILLAGER) {
 						if(getCoRole(voteCandidate) == Role.SEER) {
 							if(getDivinedResultList(voteCandidate, Species.WEREWOLF).size() == 1) {
@@ -726,12 +726,11 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				}
 			}
 			if(SfCOList.size() > 0) {
-				voteCandidate = randomSelect(SfCOList);
+				voteCandidate = selectVote(SfCOList);
 				return true;
 			}
-			// 占い師が確定で死亡していて残り2縄の場合、騙り視点での偽装妖狐が否定されてないプレイヤーからランダム
-			List<Agent> seerAliveCandidates = currentGameInfo.getAliveAgentList().stream().filter(a -> arrange.agentCandidate(pretend, Role.SEER).contains(a)).collect(Collectors.toList());
-			if(seerAliveCandidates.size() == 0 && arrange.getTotalState(pretend).get("count-expelled") == 2) {
+			// 残り2縄の場合、騙り視点での偽装妖狐が否定されてないプレイヤーからランダム
+			if(arrange.getTotalState(pretend).get("count-expelled") == 2) {
 				chooseVoteToFox(arrange, every, pretend, isTalk);
 //				System.out.println("占い師が確定で死亡していて残り2縄");
 				return true;
@@ -743,7 +742,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 				return true;
 			}
 			// それ以外の場合、確定村人陣営を除いたプレイヤーからランダム
-			voteCandidate = randomSelect(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a)).collect(Collectors.toList()));
+			voteCandidate = selectVote(aliveOthers.stream().filter(a -> !arrange.getDisitionSvList(pretend).contains(a)).collect(Collectors.toList()));
 //			System.out.println("それ以外");
 			return true;
 		}
@@ -756,8 +755,8 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		wantExeScale.clear();
 		// 1.人狼視点での確定妖狐
 		if(toAliveList(foxCandidates).size() > 0) {
-			wantExeScale.add(randomSelect(foxCandidates));
-			Agent foxCandidate = randomSelect(foxCandidates);
+			wantExeScale.add(selectVote(foxCandidates));
+			Agent foxCandidate = selectVote(foxCandidates);
 			List<Agent> RiCandidateList = immoralistCandidates.get(foxCandidate);
 			
 			// 2.妖狐候補が見つかっている場合、その妖狐基軸での背徳者候補
