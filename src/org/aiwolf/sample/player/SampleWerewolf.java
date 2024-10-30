@@ -60,6 +60,9 @@ public final class SampleWerewolf extends SampleBasePlayer {
 
 	/** 偽判定マップ */
 	private Map<Agent, Judge> myFakeJudgeMap = new HashMap<>();
+	
+	/** 偽判定リスト[占い師騙りのみ使用] */
+	private List<Agent> myFakeDivineTargetList = new ArrayList<>();
 
 	/** 未公表偽判定の待ち行列 */
 	private Deque<Judge> myFakeJudgeQueue = new LinkedList<>();
@@ -147,7 +150,8 @@ public final class SampleWerewolf extends SampleBasePlayer {
 		whisperQueue.clear();
 		myFakeJudgeList.clear();
 		myFakeJudgeMap.clear();
-		myFakeJudgeQueue.clear();
+		myFakeJudgeQueue.clear(); 
+		myFakeDivineTargetList.clear();
 		fakeComingoutMap.clear();
 		possessedList.clear();
 		werewolves = new ArrayList<>(gameInfo.getRoleMap().keySet());
@@ -300,6 +304,7 @@ public final class SampleWerewolf extends SampleBasePlayer {
 					myFakeJudgeList.add(judge);
 					myFakeJudgeMap.put(judge.getTarget(), judge);
 					myFakeJudgeQueue.offer(judge);
+					myFakeDivineTargetList.add(judge.getTarget());
 					if (judge.getResult() == Species.WEREWOLF) {
 						fakeBlackList.add(judge.getTarget());
 					} else {
@@ -319,11 +324,11 @@ public final class SampleWerewolf extends SampleBasePlayer {
 			// 占える対象を選択 (生存者+今日の犠牲者)
 			List<Agent> divinedCandidates = currentGameInfo.getAgentList().stream().filter(a -> aliveOthers.contains(a) || currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
 			List<Agent> candidates = divinedCandidates.stream()
-					.filter(a -> !myFakeJudgeMap.containsKey(a) && comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
+					.filter(a -> !myFakeDivineTargetList.contains(a) && comingoutMap.get(a) != Role.SEER).collect(Collectors.toList());
 			// 犠牲者が2人以上いる場合は犠牲者のうちまだ占ってない対象を占い対象に選択
 			if(currentGameInfo.getLastDeadAgentList().size() > 1) {
 				candidates = currentGameInfo.getAgentList().stream()
-						.filter(a -> !myFakeJudgeMap.containsKey(a) && currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
+						.filter(a -> !myFakeDivineTargetList.contains(a) && currentGameInfo.getLastDeadAgentList().contains(a)).collect(Collectors.toList());
 			}
 			if (candidates.isEmpty()) {
 				target = randomSelect(divinedCandidates);
@@ -1046,6 +1051,8 @@ public final class SampleWerewolf extends SampleBasePlayer {
 									divinedContent(me, judge.getTarget(), Species.HUMAN)));
 							myFakeJudgeMap.remove(judge.getTarget());
 							myFakeJudgeMap.put(judge.getTarget(), new Judge(judge.getDay(), judge.getAgent(), judge.getTarget(), Species.HUMAN));
+							fakeWhiteList.add(judge.getTarget());
+							fakeBlackList.remove(judge.getTarget());
 						}
 						else {
 							judges.add(dayContent(me, judge.getDay(),
