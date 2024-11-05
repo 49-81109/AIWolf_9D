@@ -793,9 +793,15 @@ public final class SampleImmoralistTmp extends SampleBasePlayer {
 	@Override
 	public Agent vote() {
 		chooseFinalVoteCandidate();
-		while(foxes.contains(voteCandidate) || voteCandidate == me || voteCandidate == null) {
-			voteCandidate = null;
+		final int maxLoop = 7;
+		int present = 1;
+		while(foxes.contains(voteCandidate) || voteCandidate == null || voteCandidate == me) {
+			if(maxLoop < present) {
+				voteCandidate = selectVote(excludeFoxMeList(aliveOthers));
+				return voteCandidate;
+			}
 			chooseFinalVoteCandidate();
+			present++;
 		}
 		isRevote = true;
 		return voteCandidate;
