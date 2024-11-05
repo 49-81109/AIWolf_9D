@@ -748,13 +748,17 @@ public class SampleBasePlayer implements Player {
 	@Override
 	public Agent vote() {
 		chooseFinalVoteCandidate();
+		final int maxLoop = 7;
+		int present = 1;
+		while(voteCandidate == null || voteCandidate == me) {
+			if(maxLoop < present) {
+				voteCandidate = randomSelect(aliveOthers);
+				return voteCandidate;
+			}
+			chooseFinalVoteCandidate();
+			present++;
+		}
 		isRevote = true;
-		if(voteCandidate == null) {
-//			System.out.println("******************************************************** null : " + me.getName());
-		}
-		else if (voteCandidate == me) {
-//			System.out.println("******************************************************** self : " + me.getName());
-		}
 		return voteCandidate;
 	}
 
