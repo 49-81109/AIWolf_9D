@@ -206,7 +206,10 @@ public class AIWolfGame {
 		gameDataMap.put(gameData.getDay(), gameData);
 
 		gameServer.setGameSetting(gameSetting);
-		
+		for(Agent agent:agentList) {
+			agent.setAgentName(gameServer.requestName(agent));
+		}
+
 		for(Agent agent:agentList){
 			gameServer.init(agent);
 			String requestName = gameServer.requestName(agent);
